@@ -1,0 +1,44 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+*.pdb
+
+# cargo-leptos build output
+/target/site/
+/.leptos.kdl
+/end2end/node_modules/
+
+# WASM / pkg
+/pkg/
+
+# Local data, databases, and secrets — NEVER commit these
+/data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-*
+/secrets/
+*.pem
+*.key
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# SBOM / signing artifacts produced locally
+*.cdx.json
+*.sbom.json
+*.sig
+
+# Fuzzing
+/fuzz/target/
+/fuzz/corpus/
+/fuzz/artifacts/
+
+# Editor / OS
+/.idea/
+/.vscode/
+*.swp
+.DS_Store
