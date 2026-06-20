@@ -1,0 +1,104 @@
+# Continuous integration — encodes the constitution's hard gates (Principles II & IV).
+# Activates fully once the Cargo workspace lands (task T001); steps that need crates are
+# guarded so the workflow is green on the design-only repo.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  has-cargo:
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if [ -f Cargo.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT";
+          else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+  lint-and-test:
+    needs: has-cargo
+    if: needs.has-cargo.outputs.present == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features
+      - name: Install cargo-leptos
+        run: cargo install cargo-leptos --locked
+      - name: Test
+        run: cargo leptos test
+
+  supply-chain:
+    needs: has-cargo
+    if: needs.has-cargo.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+      - name: cargo-audit
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  fuzz-smoke:
+    needs: has-cargo
+    if: needs.has-cargo.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz import parsers (short smoke)
+        run: |
+          for t in import_html import_json import_opml; do
+            if [ -f "fuzz/fuzz_targets/${t}.rs" ]; then
+              cargo +nightly fuzz run "$t" -- -max_total_time=60 -runs=100000
+            fi
+          done
+
+  # Always-on doc/spec sanity so the design-only repo still has a green check.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify spec package present
+        run: |
+          test -f .specify/memory/constitution.md
+          test -f specs/001-greenfield/spec.md
+          test -f specs/001-greenfield/plan.md
+          test -f specs/001-greenfield/tasks.md
+          echo "Spec package present."

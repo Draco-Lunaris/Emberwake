@@ -1,0 +1,23 @@
+Emberwake
+Copyright 2026 Draco-Lunaris (Emberwake authors)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+------------------------------------------------------------------------------
+Attribution & provenance
+------------------------------------------------------------------------------
+Emberwake is an independent, clean-room project. It was inspired by the
+self-hosted startpage concept popularized by Flame
+(https://github.com/pawelmalak/flame, by Paweł Malak and contributors) and its
+fork Dragons-Flame. Emberwake shares NO source code, stylesheets, icon art, or
+other assets with either project and is not a derivative work of them. The
+inspiration is acknowledged here with thanks.
+
+------------------------------------------------------------------------------
+Third-party software
+------------------------------------------------------------------------------
+This software depends on third-party Rust crates and system libraries, each
+distributed under its own license. A complete dependency inventory and license
+report is produced by `cargo deny` and the generated SBOM (CycloneDX) attached
+to each release. Any third-party source code vendored directly into this
+repository (currently: none) will be listed here with its license.

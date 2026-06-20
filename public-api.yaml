@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: Emberwake — Public surface
+  version: "1.0.0"
+  description: >
+    The small non-server-function surface: operational endpoints, the live event stream, the
+    OIDC callback, and a scoped-token REST API for automation. The bulk of the app's RPC is
+    the typed Leptos server-function boundary in server-functions.md; this file covers only
+    what must be plain HTTP. Auth for /api/v1/* is a scoped bearer API token (Argon2id-hashed,
+    revocable). All responses carry strict security headers; all TLS is rustls.
+servers:
+  - url: https://localhost:5005
+tags:
+  - name: ops
+  - name: events
+  - name: auth
+  - name: automation
+
+paths:
+  /healthz:
+    get:
+      tags: [ops]
+      summary: Liveness probe
+      responses: { "200": { description: Process is alive } }
+  /readyz:
+    get:
+      tags: [ops]
+      summary: Readiness probe (DB reachable, migrations applied)
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready }
+  /metrics:
+    get:
+      tags: [ops]
+      summary: Prometheus metrics (operator-scoped; bind/protect as deployed)
+      responses: { "200": { description: Prometheus exposition format } }
+
+  /events:
+    get:
+      tags: [events]
+      summary: Server-Sent Events stream (live status + weather pushes)
+      description: >
+        Public stream carries only public-service status and weather. An authenticated session
+        upgrades the stream to include private-service status. Auto-reconnect via Last-Event-ID.
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: text/event-stream of typed events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: status
+                  data: {"serviceId":"...","state":"down","latencyMs":null}
+
+                  event: weather
+                  data: {"tempC":21.4,"conditionCode":1000,"isDay":true}
+
+  /auth/oidc/login:
+    get:
+      tags: [auth]
+      summary: Begin OIDC login (redirect to IdP, auth code + PKCE)
+      responses: { "302": { description: Redirect to identity provider } }
+  /auth/oidc/callback:
+    get:
+      tags: [auth]
+      summary: OIDC redirect callback; exchanges code, maps to a local user, sets session
+      parameters:
+        - { name: code, in: query, required: true, schema: { type: string } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+      responses:
+        "302": { description: Logged in; redirect to dashboard with session cookie set }
+        "400": { description: Invalid state/PKCE or unmapped identity }
+
+  /api/v1/services:
+    get:
+      tags: [automation]
+      summary: List services (scope services:read)
+      security: [{ apiToken: [] }]
+      responses:
+        "200": { description: Service list }
+        "401": { description: Missing/invalid/revoked token }
+        "403": { description: Token lacks required scope }
+    post:
+      tags: [automation]
+      summary: Create service (scope services:write)
+      security: [{ apiToken: [] }]
+      responses:
+        "201": { description: Created }
+        "403": { description: Out of scope }
+        "429": { description: Rate limited }
+  /api/v1/services/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [automation]
+      summary: Update service (scope services:write)
+      security: [{ apiToken: [] }]
+      responses: { "200": { description: Updated }, "403": { description: Out of scope } }
+    delete:
+      tags: [automation]
+      summary: Delete service (scope services:write)
+      security: [{ apiToken: [] }]
+      responses: { "204": { description: Deleted }, "403": { description: Out of scope } }
+  /api/v1/bookmarks:
+    get:
+      tags: [automation]
+      summary: List bookmarks (scope bookmarks:read)
+      security: [{ apiToken: [] }]
+      responses: { "200": { description: Bookmark list } }
+  /api/v1/export:
+    get:
+      tags: [automation]
+      summary: Full/selective export (scope export)
+      security: [{ apiToken: [] }]
+      responses: { "200": { description: Export document } }
+
+components:
+  securitySchemes:
+    apiToken:
+      type: http
+      scheme: bearer
+      description: >
+        Scoped, revocable API token. Presented as a bearer credential; verified against an
+        Argon2id/HMAC hash; scope-checked per route; rate-limited; every use audited.
