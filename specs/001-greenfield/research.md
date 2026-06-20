@@ -179,8 +179,23 @@ static appeal is real but needs validation with this dependency set before commi
 
 ## Open Items Carried Into Design
 
-- **Argon2id parameters** tuned per-arch to hold the login latency budget on arm64 (config).
-- **OIDC provisioning policy** (auto-create vs. admin-approve external identities) — default
-  to admin-approve for least surprise; confirm with the operator persona.
-- **CSP nonce propagation** through Leptos SSR confirmed against the chosen Leptos 0.8.x
-  release before freezing the header layer.
+None. All items resolved.
+
+## Resolved Items
+
+- **CSP nonce propagation** (resolved 2026-06-19): Leptos supports CSP nonces natively
+  since v0.4.5 via the `nonce` feature and `use_nonce` attribute. The Axum integration calls
+  `leptos::nonce::provide_nonce()` in the SSR handler. Enable the `nonce` feature on the
+  `leptos` crate and call `provide_nonce()` in the Axum handler setup (T011). [Sources:
+  github.com/leptos-rs/leptos (Axum integration source), docs.rs/leptos (Csp struct),
+  newreleases.io/leptos-rs/leptos/v0.4.5 | Grade: B]
+
+- **Argon2id parameters on arm64** (resolved 2026-06-19): M1 (aarch64) benchmark shows
+  32 MiB / 6 iterations / 1 parallelism = ~82ms. Default `m=32 MiB, t=3, p=1` (~40ms on
+  arm64) with a startup auto-tune if login exceeds 200ms. Parameters are configurable via
+  config. [Sources: github.com/LoupVaillant/Monocypher/issues/274, ciphertools.org | Grade: B]
+
+- **OIDC provisioning policy** (resolved 2026-06-19): Admin-approve is the default. External
+  identities created via OIDC login require admin approval before they are mapped to a local
+  account. This ensures least surprise for homelab operators and prevents unauthorized IdP
+  users from gaining access. [Source: Kelly (operator persona) | Grade: A]

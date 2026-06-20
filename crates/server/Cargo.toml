@@ -1,0 +1,23 @@
+[package]
+name = "server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "emberwake"
+path = "src/main.rs"
+
+[features]
+ssr = ["app/ssr"]
+
+[dependencies]
+app = { path = "../app", default-features = false }
+leptos = { workspace = true }
+leptos_axum = { workspace = true }
+leptos_router = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tracing = { workspace = true }

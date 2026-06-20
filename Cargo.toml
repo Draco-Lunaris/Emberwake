@@ -1,0 +1,36 @@
+[workspace]
+members = ["crates/app", "crates/frontend", "crates/server", "e2e"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT"
+
+[workspace.dependencies]
+leptos = { version = "0.8.19", features = ["nonce"] }
+leptos_axum = "0.8.9"
+leptos_router = "0.8.13"
+axum = "0.8.9"
+tokio = { version = "1.52.3", features = ["full"] }
+tower = { version = "0.5.3", features = ["util"] }
+sqlx = { version = "0.9.0", features = ["sqlite", "runtime-tokio"] }
+serde = { version = "1.0.228", features = ["derive"] }
+uuid = { version = "1.23.3", features = ["v7", "serde", "js"] }
+tracing = "0.1.44"
+thiserror = "2.0.18"
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
+[[workspace.metadata.leptos]]
+name = "emberwake"
+bin-package = "server"
+lib-package = "app"
+output-name = "emberwake"
+site-addr = "0.0.0.0:5005"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+hash-files = true
+lib-features = ["hydrate"]
+bin-features = ["ssr"]
+bin-exe-name = "emberwake"

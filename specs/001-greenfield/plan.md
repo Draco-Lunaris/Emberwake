@@ -61,9 +61,9 @@ items; small user counts.
 | IV. Test-Backed & Verifiable | Server-fn/HTTP tests through the real router; `#[sqlx::test]` data tests; fuzzed parsers; E2E journeys; amd64/arm64 CI matrix. |
 | V. Reproducible, Observable, Single Artifact | One `cargo-leptos`-built, signed, SBOM-bearing multi-arch `ubuntu:26.04` image; tracing/OTel/Prometheus; `/healthz`+`/readyz`+`HEALTHCHECK`. |
 
-**Result**: PASS. No deviations require Complexity Tracking at plan time. Re-check after Phase
-1 once CSP-nonce propagation through Leptos SSR and per-arch Argon2id parameters are confirmed
-(both tracked as Open Items in `research.md`); neither is a principle deviation.
+**Result**: PASS. No deviations require Complexity Tracking at plan time. CSP-nonce
+propagation through Leptos SSR and per-arch Argon2id parameters were open items at plan time;
+both are now resolved (see `research.md` → Resolved Items). Neither was a principle deviation.
 
 ## Project Structure
 

@@ -1,0 +1,13 @@
+[package]
+name = "frontend"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+app = { path = "../app", default-features = false, features = ["hydrate"] }
+leptos = { workspace = true }

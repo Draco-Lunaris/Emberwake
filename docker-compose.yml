@@ -1,0 +1,23 @@
+# Docker Compose for Emberwake
+# Placeholder — finalized in Phase 12.
+
+services:
+  emberwake:
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile
+    container_name: emberwake
+    user: "10001:10001"
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      - emberwake-data:/var/lib/emberwake
+    ports:
+      - "5005:5005"
+    environment:
+      - DATA_DIR=/var/lib/emberwake
+      - RUST_LOG=info
+    restart: unless-stopped
+
+volumes:
+  emberwake-data: {}

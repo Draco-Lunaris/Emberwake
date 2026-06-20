@@ -67,7 +67,8 @@ weakening of a control here requires a Complexity Tracking justification.
 
 - Authorization enforced at the server-function boundary by role and ownership; auth fails
   closed; first-run setup route self-closes after the admin exists (guarded against the
-  two-request race).
+  two-request race via a `setup_complete` singleton setting key with a `UNIQUE` constraint,
+  checked inside the admin-creation transaction).
 - API tokens are least-privilege scoped, expiring, and revocable.
 - Docker/K8s integrations wire only read calls (list/inspect/watch); mutation is impossible by
   omission. Docker socket mounted only when the operator opts in.

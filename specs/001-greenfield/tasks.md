@@ -46,7 +46,8 @@ deployable. MVP = US1–US3.
 
 - [ ] T006 Author initial SQL migrations in `migrations/` for all entities in `data-model.md`
       (users, sessions, external_identity, passkey_credential, api_token, category, service,
-      bookmark, setting, theme, status_reading, weather_reading, audit_event).
+      bookmark, setting, theme, status_reading, status_history, weather_reading, audit_event).
+      Include a `UNIQUE` constraint on the `setup_complete` singleton setting key.
 - [ ] T007 [P] DB layer in `crates/server/src/db/`: pool init (WAL, `foreign_keys=ON`), run
       migrations on startup (idempotent), repository trait + SQLite impl skeleton.
 - [ ] T008 [P] Shared domain types + validation in `crates/app/src/domain/` (DTOs, `Visibility`,
@@ -55,13 +56,18 @@ deployable. MVP = US1–US3.
 - [ ] T010 [P] Config loader in `crates/server/src/config.rs`: figment TOML+env, `*_FILE`
       secret resolution (file wins; unreadable fails loud), validated at startup.
 - [ ] T011 Security middleware in `crates/server/src/security/`: strict CSP with per-response
-      nonce (verified to propagate through Leptos SSR), HSTS, nosniff, frame-deny, referrer
-      policy; applied to all responses.
+      nonce via Leptos `nonce` feature (`provide_nonce()` in the Axum handler, `use_nonce` on
+      inline script/style tags — confirmed supported in Leptos 0.8.x), HSTS, nosniff, frame-deny,
+      referrer policy; applied to all responses.
 - [ ] T012 [P] Rate-limiting layer (`tower_governor`) with per-route policies (login/token/
       import) in `security/rate_limit.rs`.
 - [ ] T013 [P] Telemetry in `crates/server/src/telemetry.rs`: JSON `tracing` subscriber (env
       level), OTLP export, Prometheus `/metrics`, `/healthz` + `/readyz`.
 - [ ] T014 [P] Append-only audit writer in `crates/server/src/audit.rs`.
+- [ ] T014b [P] Scheduled WAL checkpoint + optional automated SQLite `.backup` to the data
+      volume, with configurable retention limits (max backup count and max total size) to
+      preserve disk space. Defaults: checkpoint every 15 min, daily backup, retain 7 backups
+      or 500 MB total. Configurable via `db.backup.*` settings.
 - [ ] T015 Assemble the Axum router + Leptos SSR handler + app state (db, config, audit,
       telemetry, security layers) in `crates/server/src/main.rs`; bind `:5005`.
 - [ ] T016 [P] Base Leptos shell: `crates/app/src/lib.rs` (router, document head, theme slot)
@@ -230,8 +236,10 @@ search providers + integration toggles — applied server-side without flash.
 ### Tests for US6 ⚠️
 
 - [ ] T056 [P] [US6] Scheduler test: check records state/latency; transition emits an event,
-      in `tests/integration/monitor.rs`.
+      history row written, in `tests/integration/monitor.rs`.
 - [ ] T057 [P] [US6] SSE test: a connected client receives a status event on up→down flip.
+- [ ] T056b [P] [US6] Uptime summary test: `get_uptime_summary` computes correct percentage
+      from StatusHistory over a given window; retention pruning removes old rows.
 
 ### Implementation for US6
 
@@ -240,6 +248,8 @@ search providers + integration toggles — applied server-side without flash.
 - [ ] T059 [P] [US6] SSE hub + `/events` stream (public vs. session-upgraded) in
       `crates/server/src/sse/`.
 - [ ] T060 [US6] Scheduler task wiring + `get_service_statuses` read fn + live tile component.
+      Writes StatusHistory on each check; prunes by max-rows (default 1000) and max-age-days
+      (default 30). Includes `get_uptime_summary` read fn.
 
 **Checkpoint**: Live status board; disabled services make no outbound calls.
 

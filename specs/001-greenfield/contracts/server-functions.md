@@ -49,9 +49,11 @@ upload_icon(file: MultipartFile) -> IconRef           // auth: user; size/type v
 ## Auth & accounts
 
 ```rust
-// First-run setup (open only until an admin exists; race-safe)
-setup_status() -> SetupState                          // public
-complete_setup(input: AdminSetupInput) -> ()          // public, single-shot
+// First-run setup (open only until an admin exists; race-safe via setup_complete
+// singleton constraint checked inside the admin-creation transaction)
+setup_status() -> SetupState                          // public; returns Complete or Open
+complete_setup(input: AdminSetupInput) -> ()          // public, single-shot; 409 if already complete
+//   AdminSetupInput { username: String, password: String, email: Option<String> }
 
 // Password auth
 login(input: LoginInput) -> SessionSummary            // public; rate-limited; audits
@@ -110,6 +112,7 @@ discover_kubernetes() -> Vec<DiscoveredService>       // auth: admin
 ```rust
 get_weather() -> Option<WeatherReading>               // public; serves cache only
 get_service_statuses() -> Vec<StatusReading>          // public for public services
+get_uptime_summary(service: Uuid, window_hours: u32) -> UptimeSummary  // public for public services
 ```
 
 ## Import / export

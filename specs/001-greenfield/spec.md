@@ -248,7 +248,8 @@ handling; assert oversized/malformed input is rejected before any write.
 ### Edge Cases
 
 - First-run race: two setup requests arrive together → exactly one admin is created; the
-  second is rejected.
+  second is rejected. Race safety enforced via a `setup_complete` singleton setting key with a
+  `UNIQUE` constraint, checked inside the admin-creation transaction.
 - Session fixation/rotation: a privilege change rotates the session token; the old token is
   invalid immediately.
 - Argon2id parameters too aggressive for arm64 → parameters are configurable and login stays
@@ -306,6 +307,9 @@ handling; assert oversized/malformed input is rejected before any write.
   data under a single volume.
 - **FR-019**: System SHOULD support optional built-in HTTPS via rustls + ACME for operators
   not behind a reverse proxy.
+- **FR-020**: System MUST perform scheduled WAL checkpoints and SHOULD perform automated
+  SQLite `.backup` to the data volume with configurable retention limits (max count, max total
+  size) to preserve disk space.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -325,6 +329,8 @@ handling; assert oversized/malformed input is rejected before any write.
   weather config (secret-bearing), and active theme.
 - **Theme**: design tokens + custom CSS + metadata.
 - **Status Reading**: latest monitored-service health (state, latency, checked-at, reason).
+- **Status History**: bounded log of service health transitions for uptime tracking (state,
+  latency, checked-at, reason; retention-limited by max-rows and max-age).
 - **Weather Reading**: latest cached weather observation.
 - **Audit Event**: append-only security/action record (ts, actor, action, target, ip, result).
 

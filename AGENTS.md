@@ -80,4 +80,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-This project is not yet indexed. Before continuing you must scan the project, build the DOX tree and replace this message with the actual index. Go deep and scan files recursively to properly evaluate complexity and create nested DOX files where needed.
+- [`.github/`](.github/AGENTS.md) — CI/CD gates, release pipeline, contributor templates; encodes constitution hard gates (Principles II, IV, V)
+- [`specs/001-greenfield/`](specs/001-greenfield/AGENTS.md) — Feature spec set (spec, plan, research, data model, security, tasks, quickstart); owns the spec-driven workflow and constitution compliance
+  - [`specs/001-greenfield/contracts/`](specs/001-greenfield/contracts/AGENTS.md) — Typed server-function boundary and public REST API surface contracts
+- [`crates/`](crates/AGENTS.md) — Cargo workspace: app (Leptos UI + server functions + domain, ssr+hydrate), frontend (WASM hydrate entry), server (Axum binary); owns workspace deps, feature flags, cargo-leptos config

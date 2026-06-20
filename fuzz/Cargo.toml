@@ -1,0 +1,29 @@
+[package]
+name = "emberwake-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[[bin]]
+name = "import_html"
+path = "fuzz_targets/import_html.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "import_json"
+path = "fuzz_targets/import_json.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "import_opml"
+path = "fuzz_targets/import_opml.rs"
+test = false
+doc = false

@@ -143,6 +143,11 @@ Typed key/value store; values are JSON, read through a typed registry (never par
 Secret-bearing settings (weather key, OIDC client secret) are encrypted at rest with a
 key derived from a server secret, and never returned to non-admins or logged.
 
+The `setup_complete` key is a singleton used as a race-safe gate for first-run admin setup:
+its absence means setup is open; its presence (checked inside the admin-creation transaction)
+means setup is closed. A `UNIQUE` constraint on this key ensures exactly one admin is created
+even under concurrent setup requests.
+
 ### Theme
 
 | Field      | Type     | Notes                                               |
@@ -159,7 +164,7 @@ key derived from a server secret, and never returned to non-admins or logged.
 
 ### StatusReading
 
-Latest health per monitored service (one current row per service; history optional/bounded).
+Latest health per monitored service (one current row per service).
 
 | Field        | Type     | Notes                                              |
 |--------------|----------|----------------------------------------------------|
@@ -168,6 +173,24 @@ Latest health per monitored service (one current row per service; history option
 | latency_ms   | INTEGER NULL|                                                 |
 | reason       | TEXT NULL| e.g. timeout, status code                          |
 | checked_at   | TEXT     |                                                    |
+
+### StatusHistory
+
+Bounded history of service health transitions for uptime tracking. Retention limited by
+configurable max-rows-per-service (default 1000) and max-age-days (default 30). Pruned on
+write and on a scheduled cleanup.
+
+| Field        | Type     | Notes                                              |
+|--------------|----------|----------------------------------------------------|
+| id           | TEXT PK  | uuidv7 (time-ordered)                              |
+| service_id   | TEXT FK  | → Service.id; ON DELETE CASCADE                    |
+| state        | TEXT     | `up` \| `down` \| `degraded`                       |
+| latency_ms   | INTEGER NULL|                                                 |
+| reason       | TEXT NULL| e.g. timeout, status code                          |
+| checked_at   | TEXT     |                                                    |
+
+A `get_uptime_summary(service_id, window)` read function computes uptime percentage from
+this table over a configurable time window.
 
 ### WeatherReading
 
@@ -200,6 +223,7 @@ User 1─* AuditEvent (actor)
 Category 1─* Service        (Service.category_id, nullable)
 Category 1─* Bookmark       (Bookmark.category_id, nullable)
 Service  1─1 StatusReading  (current)
+Service  1─* StatusHistory  (bounded uptime log)
 
 Setting / Theme / WeatherReading : standalone
 ```
