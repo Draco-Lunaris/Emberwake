@@ -112,7 +112,10 @@ async fn main() {
         .merge(server::auth::oidc::oidc_routes())
         .merge(server::public_api::public_api_routes())
         .merge(sse::handler::sse_routes())
-        .leptos_routes(&state, routes, App)
+        .leptos_routes(&state, routes, {
+            let shell_options = options.clone();
+            move || shell(shell_options.clone())
+        })
         .fallback(file_and_error_handler::<server::state::AppState, _>(shell))
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::HeaderName::from_static("strict-transport-security"),
