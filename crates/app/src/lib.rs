@@ -28,7 +28,7 @@ pub fn App() -> impl IntoView {
     );
 
     view! {
-        <Suspense fallback=move || ()>
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
             {move || {
                 theme.get().map(|t| {
                     let css = match t {

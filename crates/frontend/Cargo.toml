@@ -11,3 +11,4 @@ crate-type = ["cdylib"]
 [dependencies]
 app = { path = "../app", default-features = false, features = ["hydrate"] }
 leptos = { workspace = true }
+wasm-bindgen = "0.2"
