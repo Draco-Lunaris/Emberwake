@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::{Style, provide_meta_context};
-use leptos_router::components::{Route, Router, Routes};
+use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
 
 pub mod components;
@@ -11,7 +11,7 @@ pub mod server;
 use components::auth::{AccountPage, AdminPage, LoginPage, SetupPage};
 use components::dashboard::Dashboard;
 use components::settings::SettingsPage;
-use domain::DashboardView;
+use domain::{DashboardView, SetupState};
 
 /// Root application component — renders Router content and theme styles.
 /// The HTML document shell (DOCTYPE, <head>, hydration scripts) is provided by
@@ -103,8 +103,22 @@ fn format_theme_css(theme: &domain::Theme) -> String {
 }
 
 /// Home page — SSR-rendered dashboard with pinned services and bookmark groups.
+/// On first run (setup open), redirects to /setup. When setup is complete but
+/// the user is not authenticated, shows a login link alongside public content.
 #[component]
 fn HomePage() -> impl IntoView {
+    let setup = Resource::new(
+        || (),
+        |_| async {
+            server::auth::setup_status()
+                .await
+                .unwrap_or(SetupState::Complete)
+        },
+    );
+    let user = Resource::new(
+        || (),
+        |_| async { server::auth::current_user().await.unwrap_or(None) },
+    );
     let dashboard = Resource::new(
         || (),
         |_| async {
@@ -119,21 +133,44 @@ fn HomePage() -> impl IntoView {
     );
 
     view! {
-        <h1>"Emberwake"</h1>
         <Suspense fallback=|| view! { <p>"Loading..."</p> }>
             {move || {
-                weather
-                    .get()
-                    .map(|w| view! { <components::dashboard::weather_widget::WeatherWidget initial=w /> })
-            }}
-        </Suspense>
-        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
-            {move || {
-                dashboard
-                    .get()
-                    .map(|data: DashboardView| {
-                        view! { <Dashboard data /> }
-                    })
+                setup.get().map(|state| {
+                    match state {
+                        SetupState::Open => view! {
+                            <Redirect path="/setup" />
+                        }.into_any(),
+                        SetupState::Complete => view! {
+                            <h1>"Emberwake"</h1>
+                            {move || {
+                                user.get().map(|u| {
+                                    match u {
+                                        Some(_) => ().into_any(),
+                                        None => view! {
+                                            <a href="/login">"Login"</a>
+                                        }.into_any()
+                                    }
+                                })
+                            }}
+                            <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+                                {move || {
+                                    weather
+                                        .get()
+                                        .map(|w| view! { <components::dashboard::weather_widget::WeatherWidget initial=w /> })
+                                }}
+                            </Suspense>
+                            <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+                                {move || {
+                                    dashboard
+                                        .get()
+                                        .map(|data: DashboardView| {
+                                            view! { <Dashboard data /> }
+                                        })
+                                }}
+                            </Suspense>
+                        }.into_any(),
+                    }
+                })
             }}
         </Suspense>
     }
