@@ -61,7 +61,7 @@ RUN useradd -r -u 10001 -d /var/lib/emberwake -s /usr/sbin/nologin emberwake
 RUN mkdir -p /var/lib/emberwake && chown 10001:10001 /var/lib/emberwake
 
 # Copy the server binary.
-COPY --from=builder /build/target/server/release/emberwake /usr/local/bin/emberwake
+COPY --from=builder /build/target/release/emberwake /usr/local/bin/emberwake
 
 # Copy the hashed WASM/asset bundle (site-root from cargo-leptos metadata).
 COPY --from=builder /build/target/site /var/lib/emberwake/site
