@@ -27,7 +27,9 @@ fn shell(options: LeptosOptions) -> impl IntoView {
                 <leptos::hydration::AutoReload options=options.clone() />
                 <leptos::hydration::HydrationScripts options=options.clone() />
             </head>
-            <body></body>
+            <body>
+                <App />
+            </body>
         </html>
     }
 }

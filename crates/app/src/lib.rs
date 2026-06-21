@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use leptos_meta::{Style, provide_meta_context};
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::path;
 
@@ -11,68 +12,55 @@ use components::auth::{AccountPage, AdminPage, LoginPage, SetupPage};
 use components::dashboard::Dashboard;
 use components::settings::SettingsPage;
 use domain::DashboardView;
-use leptos::prelude::{LeptosOptions, expect_context};
-use leptos_meta::{HashedStylesheet, provide_meta_context};
 
-/// Root application component — renders the full HTML document shell.
-/// The active theme is fetched server-side and injected as CSS custom properties
-/// in the document head, ensuring no flash of default theme on reload.
+/// Root application component — renders Router content and theme styles.
+/// The HTML document shell (DOCTYPE, <head>, hydration scripts) is provided by
+/// the `shell()` function in `server/src/main.rs`. This component only renders
+/// the router routes and injects the active theme as CSS custom properties via
+/// `<Style>` from leptos_meta (injected into <head> during SSR — no flash).
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    let options = expect_context::<LeptosOptions>();
+
     let theme = Resource::new(
         || (),
         |_| async { server::settings::get_active_theme().await.unwrap_or(None) },
     );
 
     view! {
-        <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                <meta charset="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <title>"Emberwake"</title>
-                <HashedStylesheet options=options.clone() />
-                <leptos::hydration::AutoReload options=options.clone() />
-                <leptos::hydration::HydrationScripts options=options.clone() />
-                <Suspense fallback=move || ()>
-                    {move || {
-                        theme.get().map(|t| {
-                            let css = match t {
-                                Some(theme) => {
-                                    let mut css = format_theme_css(&theme);
-                                    if let Some(ref custom) = theme.custom_css {
-                                        css.push_str(custom);
-                                    }
-                                    css
-                                }
-                                None => {
-                                    "@media (prefers-color-scheme: dark) { :root { --bg: #1a1a2e; --surface: #16213e; --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent-text: #ffffff; --border: #334155; --radius: 8px; --spacing: 16px; --font: system-ui, sans-serif; } } @media (prefers-color-scheme: light) { :root { --bg: #ffffff; --surface: #f5f5f5; --text: #1a1a1a; --text-muted: #6b7280; --accent: #3b82f6; --accent-text: #ffffff; --border: #e5e7eb; --radius: 8px; --spacing: 16px; --font: system-ui, sans-serif; } }".to_string()
-                                }
-                            };
-                            view! {
-                                <style nonce=true>{css}</style>
+        <Suspense fallback=move || ()>
+            {move || {
+                theme.get().map(|t| {
+                    let css = match t {
+                        Some(theme) => {
+                            let mut css = format_theme_css(&theme);
+                            if let Some(ref custom) = theme.custom_css {
+                                css.push_str(custom);
                             }
-                        })
-                    }}
-                </Suspense>
-            </head>
-            <body>
-                <Router>
-                    <main>
-                        <Routes fallback=|| "Not found.">
-                            <Route path=path!("/") view=HomePage />
-                            <Route path=path!("/setup") view=SetupPage />
-                            <Route path=path!("/login") view=LoginPage />
-                            <Route path=path!("/account") view=AccountPage />
-                            <Route path=path!("/admin") view=AdminPage />
-                            <Route path=path!("/settings") view=SettingsPage />
-                        </Routes>
-                    </main>
-                </Router>
-            </body>
-        </html>
+                            css
+                        }
+                        None => {
+                            "@media (prefers-color-scheme: dark) { :root { --bg: #1a1a2e; --surface: #16213e; --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent-text: #ffffff; --border: #334155; --radius: 8px; --spacing: 16px; --font: system-ui, sans-serif; } } @media (prefers-color-scheme: light) { :root { --bg: #ffffff; --surface: #f5f5f5; --text: #1a1a1a; --text-muted: #6b7280; --accent: #3b82f6; --accent-text: #ffffff; --border: #e5e7eb; --radius: 8px; --spacing: 16px; --font: system-ui, sans-serif; } }".to_string()
+                        }
+                    };
+                    view! {
+                        <Style>{css}</Style>
+                    }
+                })
+            }}
+        </Suspense>
+        <Router>
+            <main>
+                <Routes fallback=|| "Not found.">
+                    <Route path=path!("/") view=HomePage />
+                    <Route path=path!("/setup") view=SetupPage />
+                    <Route path=path!("/login") view=LoginPage />
+                    <Route path=path!("/account") view=AccountPage />
+                    <Route path=path!("/admin") view=AdminPage />
+                    <Route path=path!("/settings") view=SettingsPage />
+                </Routes>
+            </main>
+        </Router>
     }
 }
 
