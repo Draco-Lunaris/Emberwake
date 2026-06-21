@@ -11,12 +11,16 @@ use components::auth::{AccountPage, AdminPage, LoginPage, SetupPage};
 use components::dashboard::Dashboard;
 use components::settings::SettingsPage;
 use domain::DashboardView;
+use leptos::prelude::{LeptosOptions, expect_context};
+use leptos_meta::{HashedStylesheet, provide_meta_context};
 
 /// Root application component — renders the full HTML document shell.
 /// The active theme is fetched server-side and injected as CSS custom properties
 /// in the document head, ensuring no flash of default theme on reload.
 #[component]
 pub fn App() -> impl IntoView {
+    provide_meta_context();
+    let options = expect_context::<LeptosOptions>();
     let theme = Resource::new(
         || (),
         |_| async { server::settings::get_active_theme().await.unwrap_or(None) },
@@ -29,6 +33,9 @@ pub fn App() -> impl IntoView {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <title>"Emberwake"</title>
+                <HashedStylesheet options=options.clone() />
+                <leptos::hydration::AutoReload options=options.clone() />
+                <leptos::hydration::HydrationScripts options=options.clone() />
                 <Suspense fallback=move || ()>
                     {move || {
                         theme.get().map(|t| {

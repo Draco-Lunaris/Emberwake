@@ -59,6 +59,7 @@ site-addr = "0.0.0.0:5005"
 site-root = "target/site"
 site-pkg-dir = "pkg"
 hash-files = true
+style-file = "style/main.css"
 lib-features = ["hydrate"]
 bin-features = ["ssr"]
 bin-exe-name = "emberwake"

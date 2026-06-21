@@ -63,12 +63,17 @@ RUN mkdir -p /var/lib/emberwake && chown 10001:10001 /var/lib/emberwake
 # Copy the server binary.
 COPY --from=builder /build/target/release/emberwake /usr/local/bin/emberwake
 
+# Copy the hash file (needed by HashedStylesheet/HydrationScripts to resolve hashed asset names).
+COPY --from=builder /build/target/release/hash.txt /usr/local/bin/hash.txt
+
 # Copy the hashed WASM/asset bundle (site-root from cargo-leptos metadata).
 COPY --from=builder /build/target/site /var/lib/emberwake/site
 
 USER 10001:10001
 
 ENV DATA_DIR=/var/lib/emberwake
+ENV EMBERWAKE_DB_PATH=/var/lib/emberwake/emberwake.db
+ENV LEPTOS_SITE_ROOT=/var/lib/emberwake/site
 ENV RUST_LOG=info
 
 EXPOSE 5005

@@ -13,7 +13,7 @@ use server::{audit, config, db, integrations, monitor, sse, state::AppState, tel
 
 /// Shell function for SSR rendering — wraps App in HTML document.
 /// `provide_nonce()` is called here to generate a per-response CSP nonce.
-fn shell(_options: LeptosOptions) -> impl IntoView {
+fn shell(options: LeptosOptions) -> impl IntoView {
     leptos::nonce::provide_nonce();
 
     view! {
@@ -23,10 +23,11 @@ fn shell(_options: LeptosOptions) -> impl IntoView {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <title>"Emberwake"</title>
+                <leptos_meta::HashedStylesheet options=options.clone() />
+                <leptos::hydration::AutoReload options=options.clone() />
+                <leptos::hydration::HydrationScripts options=options.clone() />
             </head>
-            <body>
-                <App />
-            </body>
+            <body></body>
         </html>
     }
 }
@@ -52,6 +53,7 @@ async fn main() {
     let sse_hub = sse::SseHub::new(256);
     let discovery_cache = app::server::discovery::DiscoveryCache::new();
 
+    let site_root = std::env::var("LEPTOS_SITE_ROOT").unwrap_or_else(|_| "target/site".to_string());
     let options = LeptosOptions::builder()
         .output_name("emberwake")
         .site_addr(
@@ -60,6 +62,8 @@ async fn main() {
                 .parse::<std::net::SocketAddr>()
                 .expect("valid bind addr"),
         )
+        .site_root(site_root)
+        .hash_files(true)
         .build();
 
     let state = AppState {
