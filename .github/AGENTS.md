@@ -8,10 +8,12 @@ publish on failure.
 
 ## Ownership
 
-- `workflows/ci.yml` — CI pipeline: clippy, fmt, cargo-leptos test, cargo-deny, cargo-audit,
-  fuzz smoke; runs on amd64 + arm64 matrix; always-on docs sanity job
-- `workflows/release.yml` — release pipeline: multi-arch buildx → GHCR, SBOM (cyclonedx),
-  cosign keyless signing; triggered by `v*` tags
+- `workflows/ci.yml` — CI pipeline: clippy (`-D warnings` on amd64+arm64 matrix), fmt,
+  cargo-leptos test, cargo-deny (advisories/licenses/bans), cargo-audit, fuzz smoke
+  (import_html/json/opml); always-on docs sanity job
+- `workflows/release.yml` — release pipeline: supply-chain gate (cargo-deny + cargo-audit
+  blocks publish), multi-arch buildx → GHCR, cosign keyless signing + signature verification,
+  CycloneDX SBOM attached to GitHub Release; triggered by `v*` tags
 - `dependabot.yml` — weekly dependency updates for cargo, github-actions, docker
 - `ISSUE_TEMPLATE/` — bug report, feature request, config
 - `PULL_REQUEST_TEMPLATE.md` — PR checklist enforcing definition-of-done gates

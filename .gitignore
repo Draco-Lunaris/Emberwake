@@ -42,3 +42,6 @@
 /.vscode/
 *.swp
 .DS_Store
+
+# Agent Zero project config (contains secrets)
+.a0proj/

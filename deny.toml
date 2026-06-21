@@ -29,10 +29,11 @@ confidence-threshold = 0.9
 # Catch duplicate/incompatible versions and risky patterns early.
 multiple-versions = "warn"
 wildcards = "deny"
-# Disallow pulling in OpenSSL — the project is rustls-only (Principle II).
+# native-tls is banned — the project is rustls-only for all TLS (Principle II).
+# Note: openssl/openssl-sys are NOT banned because webauthn-rs uses them for
+# X.509 attestation certificate parsing (not TLS). The project uses rustls
+# exclusively for transport security; openssl is only for WebAuthn cert chains.
 deny = [
-    { name = "openssl" },
-    { name = "openssl-sys" },
     { name = "native-tls" },
 ]
 

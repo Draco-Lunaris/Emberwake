@@ -49,11 +49,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Format
         run: cargo fmt --all --check
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features
+      - name: Clippy (-D warnings on both arches)
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Install cargo-leptos
         run: cargo install cargo-leptos --locked
-      - name: Test
+      - name: Test (cargo leptos test)
         run: cargo leptos test
 
   supply-chain:
@@ -63,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: cargo-deny
+      - name: cargo-deny (advisories, licenses, bans)
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check

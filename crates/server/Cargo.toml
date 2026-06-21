@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+name = "server"
+path = "src/lib.rs"
+
 [[bin]]
 name = "emberwake"
 path = "src/main.rs"
@@ -13,11 +17,111 @@ path = "src/main.rs"
 ssr = ["app/ssr"]
 
 [dependencies]
-app = { path = "../app", default-features = false }
+app = { path = "../app", default-features = false, features = ["ssr"] }
 leptos = { workspace = true }
 leptos_axum = { workspace = true }
 leptos_router = { workspace = true }
+leptos_meta = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
+tower-http = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+figment = { workspace = true }
+tower_governor = { workspace = true }
+governor = { workspace = true }
+async-trait = { workspace = true }
+argon2 = { workspace = true }
+prometheus = { workspace = true }
+thiserror = { workspace = true }
+openidconnect = { workspace = true }
+webauthn-rs = { workspace = true }
+webauthn-rs-core = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+subtle = { workspace = true }
+reqwest = { workspace = true }
+futures-util = { workspace = true }
+tokio-stream = { workspace = true }
+bollard = { workspace = true }
+kube = { workspace = true }
+k8s-openapi = { workspace = true }
+
+[dev-dependencies]
+sqlx = { workspace = true }
+tokio = { workspace = true }
+
+[[test]]
+name = "dashboard"
+path = "tests/server_fn/dashboard.rs"
+
+[[test]]
+name = "ssr_dashboard"
+path = "tests/integration/ssr_dashboard.rs"
+
+[[test]]
+name = "content_write"
+path = "tests/server_fn/content_write.rs"
+
+[[test]]
+name = "content_crud"
+path = "tests/integration/content_crud.rs"
+
+[[test]]
+name = "auth"
+path = "tests/server_fn/auth.rs"
+
+[[test]]
+name = "authz"
+path = "tests/server_fn/authz.rs"
+
+[[test]]
+name = "csrf"
+path = "tests/server_fn/csrf.rs"
+
+[[test]]
+name = "oidc"
+path = "tests/integration/oidc.rs"
+
+[[test]]
+name = "webauthn"
+path = "tests/integration/webauthn.rs"
+
+[[test]]
+name = "api_token"
+path = "tests/server_fn/api_token.rs"
+
+[[test]]
+name = "settings"
+path = "tests/server_fn/settings.rs"
+
+[[test]]
+name = "ssr_theme"
+path = "tests/integration/ssr_theme.rs"
+
+[[test]]
+name = "monitor"
+path = "tests/integration/monitor.rs"
+
+[[test]]
+name = "sse"
+path = "tests/integration/sse.rs"
+
+[[test]]
+name = "weather"
+path = "tests/integration/weather.rs"
+
+[[test]]
+name = "discovery"
+path = "tests/integration/discovery.rs"
+
+[[test]]
+name = "export_import"
+path = "tests/integration/export_import.rs"

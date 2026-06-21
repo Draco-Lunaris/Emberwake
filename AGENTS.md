@@ -84,3 +84,13 @@ When the user requests a durable behavior change, record it here or in the relev
 - [`specs/001-greenfield/`](specs/001-greenfield/AGENTS.md) — Feature spec set (spec, plan, research, data model, security, tasks, quickstart); owns the spec-driven workflow and constitution compliance
   - [`specs/001-greenfield/contracts/`](specs/001-greenfield/contracts/AGENTS.md) — Typed server-function boundary and public REST API surface contracts
 - [`crates/`](crates/AGENTS.md) — Cargo workspace: app (Leptos UI + server functions + domain, ssr+hydrate), frontend (WASM hydrate entry), server (Axum binary); owns workspace deps, feature flags, cargo-leptos config
+
+## Phase 12 Deliverables
+
+- `PERFORMANCE.md` — SC-001..004 performance validation (WASM bundle verified at 89 KB gzip)
+- `SECURITY_VERIFICATION.md` — SC-005/006 security verification with evidence
+- `DEPLOYMENT.md` — deployment guide (Docker, Compose, proxy, ACME, secrets, SBOM verification)
+- `QUICKSTART_WALKTHROUGH.md` — T084 acceptance walkthrough documentation
+- `benches/seed_benchmark.sh` — benchmark script for SSR/CRUD/RSS/bundle measurement
+- `build-multiarch.sh` — multi-arch build script (amd64+arm64 → GHCR)
+- `e2e/` — E2E test suite (fantoccini, standalone crate outside workspace)

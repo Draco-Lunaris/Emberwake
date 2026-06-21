@@ -1,8 +1,15 @@
 [package]
 name = "e2e"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT"
+
+# E2E tests are NOT part of the workspace to avoid pulling fantoccini's
+# native-tls/openssl dependency into the deny.toml supply-chain gate.
+# Run with: cargo test -p e2e --manifest-path e2e/Cargo.toml
 
 [dependencies]
+fantoccini = "0.21"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"

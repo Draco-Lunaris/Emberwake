@@ -8,7 +8,7 @@
 [![Built with Rust](https://img.shields.io/badge/built_with-Rust_1.95-orange.svg)](https://www.rust-lang.org/)
 [![Frontend: Leptos](https://img.shields.io/badge/frontend-Leptos_0.8-9b59b6.svg)](https://leptos.dev/)
 [![Runtime: ubuntu 26.04](https://img.shields.io/badge/runtime-ubuntu_26.04-e95420.svg)](https://ubuntu.com/)
-[![Status: design](https://img.shields.io/badge/status-spec--driven_design-lightgrey.svg)](./specs/001-greenfield/)
+[![Status: implemented](https://img.shields.io/badge/status-implemented-brightgreen.svg)](./CHANGELOG.md)
 
 </div>
 
@@ -17,10 +17,9 @@ applications and bookmarks as an instant, searchable dashboard, with built-in ed
 multi-user accounts, live service-status and weather widgets, optional Docker/Kubernetes
 auto-discovery, and a modern theme builder. The whole stack — UI included — is Rust.
 
-> **Status**: this repository currently holds the **spec-driven design** (constitution,
-> specification, plan, contracts, threat model, and task backlog) produced with
-> [GitHub Spec Kit](https://github.com/github/spec-kit). Implementation tracks the task list
-> in [`specs/001-greenfield/tasks.md`](./specs/001-greenfield/tasks.md).
+> **Status**: all nine user stories (US1–US9) are implemented across Phases 1–11.
+> Phase 12 (Polish) finalizes CI/CD, performance validation, security verification, E2E
+> tests, and documentation. See [`CHANGELOG.md`](./CHANGELOG.md) for the full feature list.
 
 ## Why Emberwake
 

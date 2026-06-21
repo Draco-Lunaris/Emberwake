@@ -88,23 +88,23 @@ fuzzy search filters client-side; prefixed query routes to provider URL.
 
 ### Tests for US1 ⚠️ (write first)
 
-- [ ] T018 [P] [US1] Server-fn test: `list_dashboard` returns only public pinned items for an
+- [x] T018 [P] [US1] Server-fn test: `list_dashboard` returns only public pinned items for an
       anonymous caller, in `crates/server/tests/server_fn/dashboard.rs`.
-- [ ] T019 [P] [US1] SSR test: rendered HTML for `/` contains seeded pinned items before WASM,
+- [x] T019 [P] [US1] SSR test: rendered HTML for `/` contains seeded pinned items before WASM,
       in `tests/integration/ssr_dashboard.rs`.
-- [ ] T020 [P] [US1] Component test (wasm-bindgen-test): fuzzy matcher ranks a misspelled query.
+- [x] T020 [P] [US1] Component test (wasm-bindgen-test): fuzzy matcher ranks a misspelled query.
 
 ### Implementation for US1
 
-- [ ] T021 [P] [US1] Read repository methods (dashboard/list, visibility-filtered in SQL) in
+- [x] T021 [P] [US1] Read repository methods (dashboard/list, visibility-filtered in SQL) in
       `crates/server/src/db/`.
-- [ ] T022 [US1] `list_dashboard` / `list_categories` / `list_services` / `list_bookmarks`
+- [x] T022 [US1] `list_dashboard` / `list_categories` / `list_services` / `list_bookmarks`
       server functions in `crates/app/src/server/content_read.rs`.
-- [ ] T023 [P] [US1] Dashboard + tile + category components in
+- [x] T023 [P] [US1] Dashboard + tile + category components in
       `crates/app/src/components/dashboard/` (SSR-rendered, minimal hydration).
-- [ ] T024 [P] [US1] Search island (fuzzy via `nucleo`/`fuzzy-matcher` in WASM) + provider
+- [x] T024 [P] [US1] Search island (fuzzy via `nucleo`/`fuzzy-matcher` in WASM) + provider
       prefix routing in `components/search/`.
-- [ ] T025 [US1] Settings-backed search-provider config read for prefix routing.
+- [x] T025 [US1] Settings-backed search-provider config read for prefix routing.
 
 **Checkpoint**: Instant server-rendered, searchable dashboard — demoable MVP shell.
 
@@ -119,19 +119,19 @@ persistence across reload; validation rejects bad input.
 
 ### Tests for US2 ⚠️
 
-- [ ] T026 [P] [US2] Server-fn tests for service/bookmark/category create/update/delete/reorder
+- [x] T026 [P] [US2] Server-fn tests for service/bookmark/category create/update/delete/reorder
       incl. validation failures, in `tests/server_fn/content_write.rs`.
-- [ ] T027 [P] [US2] Integration test: CRUD lifecycle persists across a simulated restart.
+- [x] T027 [P] [US2] Integration test: CRUD lifecycle persists across a simulated restart.
 
 ### Implementation for US2
 
-- [ ] T028 [P] [US2] Write repository methods (create/update/delete/reorder/pin; delete policy
+- [x] T028 [P] [US2] Write repository methods (create/update/delete/reorder/pin; delete policy
       for categories tested) in `crates/server/src/db/`.
-- [ ] T029 [US2] Mutating server functions in `crates/app/src/server/content_write.rs`
+- [x] T029 [US2] Mutating server functions in `crates/app/src/server/content_write.rs`
       (auth+CSRF+authz enforced; audited).
-- [ ] T030 [P] [US2] Editor components (forms + drag-and-drop reorder, optimistic updates) in
+- [x] T030 [P] [US2] Editor components (forms + drag-and-drop reorder, optimistic updates) in
       `components/editors/`.
-- [ ] T031 [US2] Icon upload server function + validated multipart handler writing to the data
+- [x] T031 [US2] Icon upload server function + validated multipart handler writing to the data
       volume.
 
 **Checkpoint**: Dashboard is fully editable from the UI; US1 + US2 both standalone.
@@ -148,24 +148,24 @@ throttled; private items hidden from unauthorized; sign-out/revoke invalidate se
 
 ### Tests for US3 ⚠️
 
-- [ ] T032 [P] [US3] Server-fn tests: setup single-shot + race safety; login success/throttle;
+- [x] T032 [P] [US3] Server-fn tests: setup single-shot + race safety; login success/throttle;
       logout/revoke invalidate server-side, in `tests/server_fn/auth.rs`.
-- [ ] T033 [P] [US3] Authz test: private rows excluded for anon/unauthorized in read fns.
-- [ ] T034 [P] [US3] CSRF test: a forged cross-origin mutation is rejected.
+- [x] T033 [P] [US3] Authz test: private rows excluded for anon/unauthorized in read fns.
+- [x] T034 [P] [US3] CSRF test: a forged cross-origin mutation is rejected.
 
 ### Implementation for US3
 
-- [ ] T035 [P] [US3] Argon2id hash/verify (configurable cost) in `crates/server/src/auth/password.rs`.
-- [ ] T036 [P] [US3] Session layer (`tower-sessions` + SQLx store): opaque rotating tokens,
+- [x] T035 [P] [US3] Argon2id hash/verify (configurable cost) in `crates/server/src/auth/password.rs`.
+- [x] T036 [P] [US3] Session layer (`tower-sessions` + SQLx store): opaque rotating tokens,
       HttpOnly/Secure/SameSite cookie, idle+absolute expiry, in `auth/session.rs`.
-- [ ] T037 [P] [US3] CSRF protection (origin check + per-session token) in `auth/csrf.rs`,
+- [x] T037 [P] [US3] CSRF protection (origin check + per-session token) in `auth/csrf.rs`,
       applied to all mutating server functions.
-- [ ] T038 [US3] First-run setup (`setup_status`/`complete_setup`, race-safe close) +
+- [x] T038 [US3] First-run setup (`setup_status`/`complete_setup`, race-safe close) +
       login/logout/current_user server functions in `crates/app/src/server/auth.rs`.
-- [ ] T039 [US3] Session management (`list_sessions`/`revoke_session`/`revoke_all_other`) and
+- [x] T039 [US3] Session management (`list_sessions`/`revoke_session`/`revoke_all_other`) and
       admin user management server functions; audit all auth events.
-- [ ] T040 [US3] Enforce role + visibility in every read/write fn (server-boundary, in SQL).
-- [ ] T041 [P] [US3] Login/setup/account UI routes + session list in `components/auth/`.
+- [x] T040 [US3] Enforce role + visibility in every read/write fn (server-boundary, in SQL).
+- [x] T041 [P] [US3] Login/setup/account UI routes + session list in `components/auth/`.
 
 **Checkpoint**: Multi-user, secure, revocable auth gates editing and private content — **MVP
 complete**. Stop and validate (SC-001..003, SC-005).
