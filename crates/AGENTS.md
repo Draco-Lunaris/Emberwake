@@ -10,7 +10,8 @@ Rust web app on Axum. Three crates form the canonical cargo-leptos workspace sha
 - `app/` — Leptos UI components + server functions + shared domain types. Compiled
   for both `ssr` and `hydrate` features. Crate-type: `cdylib` + `rlib`.
 - `frontend/` — Thin WASM hydrate entry point. Crate-type: `cdylib`. Depends on
-  `app` with `hydrate` feature.
+  `app` with `hydrate` feature. Exports `#[wasm_bindgen] pub fn hydrate()` which the
+  Leptos hydration script calls as `mod.hydrate()` after WASM initialization.
 - `server/` — Axum binary (`emberwake`) + library (`server`). Depends on `app`
   with `ssr` feature. Owns all non-UI concerns (db, auth, security middleware,
   integrations, telemetry). Library target enables integration tests.
