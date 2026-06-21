@@ -23,6 +23,7 @@ fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <title>"Emberwake"</title>
+                <leptos_meta::MetaTags />
                 <leptos_meta::HashedStylesheet options=options.clone() />
                 <leptos::hydration::AutoReload options=options.clone() />
                 <leptos::hydration::HydrationScripts options=options.clone() />
