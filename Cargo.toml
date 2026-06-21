@@ -53,7 +53,7 @@ quick-xml = "0.37"
 [[workspace.metadata.leptos]]
 name = "emberwake"
 bin-package = "server"
-lib-package = "app"
+lib-package = "frontend"
 output-name = "emberwake"
 site-addr = "0.0.0.0:5005"
 site-root = "target/site"

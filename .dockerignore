@@ -1,0 +1,8 @@
+target/
+fuzz/target/
+data/
+*.db
+*.db-*
+.a0proj/
+venv/
+.git/
