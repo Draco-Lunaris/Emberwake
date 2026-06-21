@@ -121,7 +121,12 @@ pub async fn login(input: LoginInput) -> Result<SessionSummary, ServerFnError<Ap
         .await
         {
             Ok((token, _csrf, user_id)) => {
-                if let Some(res_opts) = use_context::<leptos_axum::ResponseOptions>() {
+                let res_opts = use_context::<leptos_axum::ResponseOptions>();
+                if res_opts.is_none() {
+                    #[cfg(feature = "ssr")]
+                    tracing::warn!("ResponseOptions not found in context — cookie will not be set");
+                }
+                if let Some(res_opts) = res_opts {
                     let cookie = crate::server::auth_queries::build_session_cookie(&token, false);
                     res_opts.insert_header(
                         axum::http::HeaderName::from_static("set-cookie"),

@@ -10,8 +10,9 @@ pub mod server;
 
 use components::auth::{AccountPage, AdminPage, LoginPage, SetupPage};
 use components::dashboard::Dashboard;
+use components::search::SearchIsland;
 use components::settings::SettingsPage;
-use domain::{DashboardView, SetupState};
+use domain::{DashboardView, Role, SetupState};
 
 /// Root application component — renders Router content and theme styles.
 /// The HTML document shell (DOCTYPE, <head>, hydration scripts) is provided by
@@ -102,7 +103,7 @@ fn format_theme_css(theme: &domain::Theme) -> String {
     css
 }
 
-/// Home page — SSR-rendered dashboard with pinned services and bookmark groups.
+/// Home page — SSR-rendered dashboard with nav, search, and pinned content.
 /// On first run (setup open), redirects to /setup. When setup is complete but
 /// the user is not authenticated, shows a login link alongside public content.
 #[component]
@@ -132,6 +133,13 @@ fn HomePage() -> impl IntoView {
         |_| async { server::weather_read::get_weather().await.unwrap_or(None) },
     );
 
+    let logout = move |_| {
+        leptos::task::spawn_local(async move {
+            let _ = server::auth::logout().await;
+            leptos_router::hooks::use_navigate()("/login", Default::default());
+        });
+    };
+
     view! {
         <Suspense fallback=|| view! { <p>"Loading..."</p> }>
             {move || {
@@ -142,13 +150,58 @@ fn HomePage() -> impl IntoView {
                         }.into_any(),
                         SetupState::Complete => view! {
                             <h1>"Emberwake"</h1>
+                            <nav>
+                                {move || {
+                                    user.get().map(|u| {
+                                        match u {
+                                            Some(u) => view! {
+                                                <a href="/settings">"Settings"</a>
+                                                <a href="/account">"Account"</a>
+                                                {if u.role == Role::Admin {
+                                                    view! { <a href="/admin">"Admin"</a> }.into_any()
+                                                } else {
+                                                    ().into_any()
+                                                }}
+                                                <button on:click=logout>"Logout"</button>
+                                            }.into_any(),
+                                            None => view! {
+                                                <a href="/login">"Login"</a>
+                                            }.into_any()
+                                        }
+                                    })
+                                }}
+                            </nav>
+                            <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+                                {move || {
+                                    dashboard
+                                        .get()
+                                        .map(|data: DashboardView| {
+                                            let mut items: Vec<(String, String)> = data
+                                                .pinned_services
+                                                .iter()
+                                                .map(|s| (s.name.clone(), s.url.clone()))
+                                                .collect();
+                                            for group in &data.pinned_categories {
+                                                for bm in &group.bookmarks {
+                                                    items.push((bm.name.clone(), bm.url.clone()));
+                                                }
+                                            }
+                                            view! { <SearchIsland items providers=vec![] /> }
+                                        })
+                                }}
+                            </Suspense>
                             {move || {
                                 user.get().map(|u| {
-                                    match u {
-                                        Some(_) => ().into_any(),
-                                        None => view! {
-                                            <a href="/login">"Login"</a>
+                                    if u.is_some() {
+                                        view! {
+                                            <div class="add-content">
+                                                <a href="/settings">"Add Service"</a>
+                                                <a href="/settings">"Add Bookmark"</a>
+                                                <a href="/settings">"Add Category"</a>
+                                            </div>
                                         }.into_any()
+                                    } else {
+                                        ().into_any()
                                     }
                                 })
                             }}
