@@ -175,3 +175,12 @@ fn HomePage() -> impl IntoView {
         </Suspense>
     }
 }
+
+/// WASM hydrate entry point — called by the Leptos hydration script as `mod.hydrate()`.
+/// Only compiled when the `hydrate` feature is enabled (WASM build).
+#[cfg(feature = "hydrate")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn hydrate() {
+    use leptos::mount::hydrate_body;
+    hydrate_body(App);
+}
