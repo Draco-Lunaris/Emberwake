@@ -111,6 +111,18 @@ Rust web app on Axum. Three crates form the canonical cargo-leptos workspace sha
 - `app/src/lib.rs` injects the active theme as CSS custom properties in the document head during SSR
   (no flash of default theme). Falls back to `prefers-color-scheme` when no active theme is set. Custom CSS
   is served with CSP nonce (`nonce=true` on `<style>` tags).
+- `app/src/lib.rs` calls `provide_meta_context()` and includes `<HashedStylesheet>`, `<HydrationScripts>`,
+  and `<AutoReload>` in the `<head>` for WASM hydration and CSS asset loading. `LeptosOptions` is obtained
+  via `expect_context`.
+- `style/main.css` is the component CSS file, bundled by cargo-leptos via `style-file` in workspace metadata.
+  Uses theme tokens (CSS custom properties: `--bg`, `--surface`, `--text`, `--text-muted`, `--accent`,
+  `--accent-text`, `--border`, `--radius`, `--spacing`, `--font`). Dark/light mode works via `prefers-color-scheme`.
+- `server/src/main.rs` `LeptosOptions::builder()` sets `site_root` from `LEPTOS_SITE_ROOT` env var (defaults
+  to `target/site`) and `hash_files(true)` to match cargo-leptos `hash-files = true` config.
+- `server/src/main.rs` `shell()` function (for error/404 pages) includes `<HashedStylesheet>`, `<AutoReload>`,
+  and `<HydrationScripts>` for consistent asset loading on error pages.
+- `.docker/Dockerfile` copies `hash.txt` to `/usr/local/bin/hash.txt` (needed by `HashedStylesheet`/
+  `HydrationScripts` to resolve hashed asset names) and sets `LEPTOS_SITE_ROOT=/var/lib/emberwake/site`.
 - `server/src/main.rs` seeds built-in themes (Light + Dark) on startup if none exist.
 - Settings domain types: `DesignTokens`, `Theme`, `ThemeSummary`, `ThemeInput`, `SettingsView`,
   `SettingsPatch`, `IntegrationSettings`, `WeatherSettings`, `AuthSettings` in `app/src/domain/mod.rs`.
