@@ -6,10 +6,12 @@
 use leptos::server_fn::ServerFnError;
 
 use crate::domain::{
-    DuplicateStrategy, ExportDocument, ExportScope, ImportKind, ImportOptions, ImportPreviewData,
-    ImportResult, ParsedData,
+    ExportDocument, ExportScope, ImportKind, ImportOptions, ImportPreviewData, ImportResult,
 };
 use crate::error::AppError;
+
+#[cfg(feature = "ssr")]
+use crate::domain::{DuplicateStrategy, ParsedData};
 
 /// Require admin session + CSRF for import/export operations.
 #[cfg(feature = "ssr")]

@@ -4,10 +4,11 @@
 use leptos::server_fn::ServerFnError;
 use uuid::Uuid;
 
-use crate::domain::{
-    Bookmark, CategoryWithItems, DashboardView, Service, ServiceFilter, VisibilityFilter,
-};
+use crate::domain::{Bookmark, CategoryWithItems, DashboardView, Service, ServiceFilter};
 use crate::error::AppError;
+
+#[cfg(feature = "ssr")]
+use crate::domain::VisibilityFilter;
 
 /// Determine visibility filter based on whether the caller has a valid session.
 #[cfg(feature = "ssr")]

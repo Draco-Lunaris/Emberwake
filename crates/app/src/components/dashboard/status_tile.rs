@@ -10,7 +10,6 @@ use crate::domain::{MonitorState, Service};
 /// the status indicator in real-time without page refresh.
 #[component]
 pub fn StatusTile(service: Service) -> impl IntoView {
-    let service_id = service.id;
     let state_signal = RwSignal::new(MonitorState::Up);
     let latency_signal = RwSignal::new(None::<i64>);
 
@@ -20,6 +19,7 @@ pub fn StatusTile(service: Service) -> impl IntoView {
         use wasm_bindgen::JsCast;
         use wasm_bindgen::prelude::*;
 
+        let service_id = service.id;
         Effect::new(move || {
             let id = service_id.to_string();
             let on_message = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
@@ -49,7 +49,7 @@ pub fn StatusTile(service: Service) -> impl IntoView {
             {
                 let es_clone = es.clone();
                 let on_open = Closure::wrap(Box::new(move |_| {
-                    tracing::debug!("SSE connected");
+                    // SSE connected
                 }) as Box<dyn FnMut(JsValue)>);
                 es.set_onopen(Some(on_open.as_ref().unchecked_ref()));
                 on_open.forget();

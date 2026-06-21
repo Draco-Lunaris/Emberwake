@@ -4,7 +4,9 @@
 use leptos::server_fn::ServerFnError;
 use uuid::Uuid;
 
-use crate::domain::{StatusReading, UptimeSummary, VisibilityFilter};
+#[cfg(feature = "ssr")]
+use crate::domain::VisibilityFilter;
+use crate::domain::{StatusReading, UptimeSummary};
 use crate::error::AppError;
 
 /// Determine visibility filter based on whether the caller has a valid session.

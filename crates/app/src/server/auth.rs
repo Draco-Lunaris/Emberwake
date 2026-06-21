@@ -5,10 +5,12 @@ use leptos::server_fn::ServerFnError;
 use uuid::Uuid;
 
 use crate::domain::{
-    AdminSetupInput, LoginInput, NewUserInput, Role, SessionSummary, SetupState, UserPatch,
-    UserSummary,
+    AdminSetupInput, LoginInput, NewUserInput, SessionSummary, SetupState, UserPatch, UserSummary,
 };
 use crate::error::AppError;
+
+#[cfg(feature = "ssr")]
+use crate::domain::Role;
 
 /// Argon2 params wrapper for Axum Extension extraction.
 #[derive(Clone)]

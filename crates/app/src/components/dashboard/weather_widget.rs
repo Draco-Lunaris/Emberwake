@@ -48,7 +48,7 @@ pub fn WeatherWidget(initial: Option<WeatherReading>) -> impl IntoView {
             {
                 let es_clone = es.clone();
                 let on_open = Closure::wrap(Box::new(move |_| {
-                    tracing::debug!("SSE connected (weather)");
+                    // SSE connected (weather)
                 }) as Box<dyn FnMut(JsValue)>);
                 es.set_onopen(Some(on_open.as_ref().unchecked_ref()));
                 on_open.forget();
