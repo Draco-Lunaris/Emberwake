@@ -42,7 +42,7 @@ RUN cargo leptos build --release
 
 # ── Stage 3: runtime ──────────────────────────────────────────────────────────
 # digest-pinned ubuntu:26.04 — update digest when bumping base image.
-FROM ubuntu@sha256:0000000000000000000000000000000000000000000000000000000000000000 AS runtime
+FROM ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1 AS runtime
 # NOTE: Replace the digest above with the actual ubuntu:26.04 digest at build time:
 #   docker pull ubuntu:26.04 && docker inspect --format='{{index .RepoDigests 0}}' ubuntu:26.04
 # The placeholder digest ensures the image is never pulled implicitly.
