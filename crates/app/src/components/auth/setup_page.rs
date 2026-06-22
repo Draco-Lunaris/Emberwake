@@ -2,6 +2,7 @@
 
 use crate::domain::AdminSetupInput;
 use leptos::prelude::*;
+use leptos_router::components::A;
 
 #[component]
 pub fn SetupPage() -> impl IntoView {
@@ -40,7 +41,7 @@ pub fn SetupPage() -> impl IntoView {
             {move || if done.get() {
                 view! {
                     <p>"Admin account created! You can now "
-                        <a href="/login">"log in"</a>"."</p>
+                        <A href="/login">"log in"</A>"."</p>
                 }.into_any()
             } else {
                 view! {

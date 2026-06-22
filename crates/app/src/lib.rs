@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::{Style, provide_meta_context};
-use leptos_router::components::{Redirect, Route, Router, Routes};
+use leptos_router::components::{A, Redirect, Route, Router, Routes};
 use leptos_router::path;
 
 pub mod components;
@@ -160,17 +160,17 @@ fn HomePage() -> impl IntoView {
                                     user.get().map(|u| {
                                         match u {
                                             Some(u) => view! {
-                                                <a href="/settings">"Settings"</a>
-                                                <a href="/account">"Account"</a>
+                                                <A href="/settings">"Settings"</A>
+                                                <A href="/account">"Account"</A>
                                                 {if u.role == Role::Admin {
-                                                    view! { <a href="/admin">"Admin"</a> }.into_any()
+                                                    view! { <A href="/admin">"Admin"</A> }.into_any()
                                                 } else {
                                                     ().into_any()
                                                 }}
                                                 <button on:click=logout>"Logout"</button>
                                             }.into_any(),
                                             None => view! {
-                                                <a href="/login">"Login"</a>
+                                                <A href="/login">"Login"</A>
                                             }.into_any()
                                         }
                                     })
@@ -200,9 +200,9 @@ fn HomePage() -> impl IntoView {
                                     if u.is_some() {
                                         view! {
                                             <div class="add-content">
-                                                <a href="/settings">"Add Service"</a>
-                                                <a href="/settings">"Add Bookmark"</a>
-                                                <a href="/settings">"Add Category"</a>
+                                                <A href="/settings">"Add Service"</A>
+                                                <A href="/settings">"Add Bookmark"</A>
+                                                <A href="/settings">"Add Category"</A>
                                             </div>
                                         }.into_any()
                                     } else {
