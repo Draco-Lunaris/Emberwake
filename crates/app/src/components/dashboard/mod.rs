@@ -11,24 +11,46 @@ use crate::domain::{Bookmark, CategoryWithBookmarks, DashboardView, Service};
 /// Dashboard component: renders pinned services and bookmark groups.
 #[component]
 pub fn Dashboard(data: DashboardView) -> impl IntoView {
+    let has_services = !data.pinned_services.is_empty();
+    let has_categories = !data.pinned_categories.is_empty();
+
     view! {
         <div class="dashboard">
             <section class="pinned-services">
                 <h2>"Services"</h2>
-                <div class="tiles">
-                    {data
-                        .pinned_services
-                        .into_iter()
-                        .map(|svc| view! { <ServiceTile service=svc /> })
-                        .collect::<Vec<_>>()}
-                </div>
+                {if has_services {
+                    view! {
+                        <div class="tiles">
+                            {data
+                                .pinned_services
+                                .into_iter()
+                                .map(|svc| view! { <ServiceTile service=svc /> })
+                                .collect::<Vec<_>>()}
+                        </div>
+                    }.into_any()
+                } else {
+                    view! {
+                        <div class="empty-state">
+                            <p>"No services yet. Click Add Service to get started."</p>
+                        </div>
+                    }.into_any()
+                }}
             </section>
             <section class="pinned-categories">
-                {data
-                    .pinned_categories
-                    .into_iter()
-                    .map(|group| view! { <CategorySection group=group /> })
-                    .collect::<Vec<_>>()}
+                {if has_categories {
+                    data
+                        .pinned_categories
+                        .into_iter()
+                        .map(|group| view! { <CategorySection group=group /> })
+                        .collect::<Vec<_>>()
+                        .into_any()
+                } else {
+                    view! {
+                        <div class="empty-state">
+                            <p>"No categories yet. Click Add Category to organize your bookmarks."</p>
+                        </div>
+                    }.into_any()
+                }}
             </section>
         </div>
     }

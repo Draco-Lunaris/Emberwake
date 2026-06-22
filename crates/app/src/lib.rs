@@ -136,7 +136,12 @@ fn HomePage() -> impl IntoView {
     let logout = move |_| {
         leptos::task::spawn_local(async move {
             let _ = server::auth::logout().await;
-            leptos_router::hooks::use_navigate()("/login", Default::default());
+            // Full page reload ensures the cleared session cookie takes effect immediately.
+            if let Some(window) = web_sys::window() {
+                let _ = window.location().assign("/login");
+            } else {
+                leptos_router::hooks::use_navigate()("/login", Default::default());
+            }
         });
     };
 
@@ -149,8 +154,8 @@ fn HomePage() -> impl IntoView {
                             <Redirect path="/setup" />
                         }.into_any(),
                         SetupState::Complete => view! {
-                            <h1>"Emberwake"</h1>
-                            <nav>
+                            <nav class="navbar">
+                                <h1>"Emberwake"</h1>
                                 {move || {
                                     user.get().map(|u| {
                                         match u {

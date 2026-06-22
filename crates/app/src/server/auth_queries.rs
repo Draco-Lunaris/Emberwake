@@ -611,7 +611,7 @@ pub fn parse_session_cookie(cookie_header: Option<&str>) -> Option<String> {
 
 pub fn build_session_cookie(token: &str, secure: bool) -> String {
     let mut cookie = format!(
-        "{}={}; Path=/; HttpOnly; SameSite=Strict",
+        "{}={}; Path=/; HttpOnly; SameSite=Lax",
         SESSION_COOKIE_NAME, token
     );
     if secure {
@@ -623,7 +623,7 @@ pub fn build_session_cookie(token: &str, secure: bool) -> String {
 
 pub fn build_clear_session_cookie(secure: bool) -> String {
     let mut cookie = format!(
-        "{}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0",
+        "{}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
         SESSION_COOKIE_NAME
     );
     if secure {

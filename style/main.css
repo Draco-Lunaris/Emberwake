@@ -1,6 +1,9 @@
-/* Emberwake component styles — uses theme tokens (CSS custom properties) */
-/* Tokens: --bg, --surface, --text, --text-muted, --accent, --accent-text,
+/* Emberwake — modern startpage stylesheet
+   Uses theme tokens (CSS custom properties) for dark/light mode.
+   Tokens: --bg, --surface, --text, --text-muted, --accent, --accent-text,
    --border, --radius, --spacing, --font */
+
+/* ── Reset ───────────────────────────────────────────────── */
 
 * {
     margin: 0;
@@ -8,17 +11,22 @@
     box-sizing: border-box;
 }
 
+/* ── Base ─────────────────────────────────────────────────── */
+
 body {
-    font-family: var(--font, system-ui, sans-serif);
+    font-family: var(--font, system-ui, -apple-system, sans-serif);
     background: var(--bg, #1a1a2e);
     color: var(--text, #e2e8f0);
-    line-height: 1.5;
+    line-height: 1.6;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 a {
     color: var(--accent, #3b82f6);
     text-decoration: none;
+    transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 a:hover {
@@ -33,20 +41,170 @@ main {
 
 h1 {
     font-size: 1.75rem;
+    font-weight: 700;
     margin-bottom: var(--spacing, 16px);
+    letter-spacing: -0.02em;
 }
 
 h2 {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
+    font-weight: 600;
     margin-bottom: calc(var(--spacing, 16px) * 0.5);
+    letter-spacing: -0.01em;
 }
 
 h3 {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
+    font-weight: 600;
     margin-bottom: calc(var(--spacing, 16px) * 0.5);
 }
 
-/* ── Dashboard ─────────────────────────────────────────── */
+/* ── Navigation Bar ──────────────────────────────────────── */
+
+.navbar {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing, 16px) * 0.75);
+    padding: calc(var(--spacing, 16px) * 0.75) var(--spacing, 16px);
+    background: var(--surface, #16213e);
+    border: 1px solid var(--border, #334155);
+    border-radius: var(--radius, 8px);
+    margin-bottom: var(--spacing, 16px);
+}
+
+.navbar h1 {
+    margin: 0;
+    margin-right: auto;
+    font-size: 1.35rem;
+}
+
+.navbar a {
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: calc(var(--radius, 8px) * 0.75);
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.navbar a:hover {
+    color: var(--text, #e2e8f0);
+    background: var(--bg, #1a1a2e);
+    text-decoration: none;
+}
+
+.navbar button {
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: transparent;
+    color: var(--text-muted, #94a3b8);
+    border: 1px solid var(--border, #334155);
+    border-radius: calc(var(--radius, 8px) * 0.75);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.navbar button:hover {
+    color: var(--accent, #3b82f6);
+    border-color: var(--accent, #3b82f6);
+    background: var(--bg, #1a1a2e);
+}
+
+/* ── Search ──────────────────────────────────────────────── */
+
+.search-island {
+    margin-bottom: var(--spacing, 16px);
+    position: relative;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 16px 12px 40px;
+    font-size: 1rem;
+    font-family: var(--font, system-ui, sans-serif);
+    background: var(--surface, #16213e);
+    border: 1px solid var(--border, #334155);
+    border-radius: var(--radius, 8px);
+    color: var(--text, #e2e8f0);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-input::placeholder {
+    color: var(--text-muted, #94a3b8);
+}
+
+.search-input:focus {
+    border-color: var(--accent, #3b82f6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #3b82f6) 15%, transparent);
+}
+
+.search-island::before {
+    content: "🔍";
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.9rem;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.search-results {
+    list-style: none;
+    margin-top: 6px;
+    border: 1px solid var(--border, #334155);
+    border-radius: var(--radius, 8px);
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.search-result a {
+    display: block;
+    padding: 10px 16px;
+    color: var(--text, #e2e8f0);
+    font-size: 0.9rem;
+    transition: background 0.1s ease, color 0.1s ease;
+}
+
+.search-result a:hover {
+    background: var(--bg, #1a1a2e);
+    color: var(--accent, #3b82f6);
+    text-decoration: none;
+}
+
+/* ── Add Content Buttons ─────────────────────────────────── */
+
+.add-content {
+    display: flex;
+    gap: calc(var(--spacing, 16px) * 0.5);
+    margin-bottom: var(--spacing, 16px);
+    flex-wrap: wrap;
+}
+
+.add-content a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--accent-text, #ffffff);
+    background: var(--accent, #3b82f6);
+    border: none;
+    border-radius: var(--radius, 8px);
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.add-content a:hover {
+    opacity: 0.85;
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+/* ── Dashboard ───────────────────────────────────────────── */
 
 .dashboard {
     display: flex;
@@ -59,9 +217,11 @@ h3 {
     margin-bottom: calc(var(--spacing, 16px) * 0.5);
 }
 
+/* ── Service Tiles ───────────────────────────────────────── */
+
 .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: calc(var(--spacing, 16px) * 0.75);
 }
 
@@ -69,39 +229,42 @@ h3 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: calc(var(--spacing, 16px) * 0.75);
     background: var(--surface, #16213e);
     border: 1px solid var(--border, #334155);
     border-radius: var(--radius, 8px);
     color: var(--text, #e2e8f0);
     text-align: center;
-    transition: border-color 0.15s, transform 0.1s;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tile:hover {
     border-color: var(--accent, #3b82f6);
     text-decoration: none;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 .tile-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
+    width: 36px;
+    height: 36px;
+    border-radius: calc(var(--radius, 8px) * 0.75);
 }
 
 .tile-icon-placeholder {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
-    font-weight: bold;
+    font-weight: 700;
     background: var(--accent, #3b82f6);
     color: var(--accent-text, #ffffff);
-    border-radius: var(--radius, 8px);
+    border-radius: calc(var(--radius, 8px) * 0.75);
 }
 
 .tile-name {
@@ -116,6 +279,10 @@ h3 {
 .tile-desc {
     font-size: 0.75rem;
     color: var(--text-muted, #94a3b8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
 /* ── Status Tile ────────────────────────────────────────── */
@@ -126,8 +293,8 @@ h3 {
 
 .status-indicator {
     position: absolute;
-    top: 6px;
-    right: 6px;
+    top: 8px;
+    right: 8px;
     font-size: 0.7rem;
     line-height: 1;
 }
@@ -153,7 +320,7 @@ h3 {
 
 .pinned-categories {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: var(--spacing, 16px);
 }
 
@@ -162,87 +329,71 @@ h3 {
     border: 1px solid var(--border, #334155);
     border-radius: var(--radius, 8px);
     padding: calc(var(--spacing, 16px) * 0.75);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .category h3 {
     margin-bottom: calc(var(--spacing, 16px) * 0.5);
+    padding-bottom: calc(var(--spacing, 16px) * 0.25);
+    border-bottom: 1px solid var(--border, #334155);
 }
 
 .bookmarks {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
 .bookmarks a {
+    display: block;
+    padding: 6px 8px;
     color: var(--text, #e2e8f0);
     font-size: 0.85rem;
+    border-radius: calc(var(--radius, 8px) * 0.5);
+    transition: background 0.1s ease, color 0.1s ease;
 }
 
 .bookmarks a:hover {
-    color: var(--accent, #3b82f6);
-}
-
-/* ── Search ─────────────────────────────────────────────── */
-
-.search-island {
-    margin-bottom: var(--spacing, 16px);
-}
-
-.search-input {
-    width: 100%;
-    padding: 10px 14px;
-    font-size: 1rem;
-    font-family: var(--font, system-ui, sans-serif);
-    background: var(--surface, #16213e);
-    border: 1px solid var(--border, #334155);
-    border-radius: var(--radius, 8px);
-    color: var(--text, #e2e8f0);
-    outline: none;
-}
-
-.search-input:focus {
-    border-color: var(--accent, #3b82f6);
-}
-
-.search-results {
-    list-style: none;
-    margin-top: 4px;
-    border: 1px solid var(--border, #334155);
-    border-radius: var(--radius, 8px);
-    overflow: hidden;
-}
-
-.search-result a {
-    display: block;
-    padding: 8px 14px;
-    color: var(--text, #e2e8f0);
-    font-size: 0.9rem;
-}
-
-.search-result a:hover {
-    background: var(--surface, #16213e);
+    background: var(--bg, #1a1a2e);
     color: var(--accent, #3b82f6);
     text-decoration: none;
 }
 
-/* ── Weather Widget ────────────────────────────────────── */
+/* ── Empty State ─────────────────────────────────────────── */
+
+.empty-state {
+    padding: calc(var(--spacing, 16px) * 2) var(--spacing, 16px);
+    text-align: center;
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.9rem;
+    background: var(--surface, #16213e);
+    border: 1px dashed var(--border, #334155);
+    border-radius: var(--radius, 8px);
+}
+
+.empty-state p {
+    margin: 0;
+}
+
+/* ── Weather Widget ──────────────────────────────────────── */
 
 .weather-widget {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
+    gap: 10px;
+    padding: 10px 16px;
     background: var(--surface, #16213e);
     border: 1px solid var(--border, #334155);
     border-radius: var(--radius, 8px);
     font-size: 0.9rem;
     margin-bottom: var(--spacing, 16px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .weather-temp {
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1.1rem;
 }
 
 .weather-condition {
@@ -250,18 +401,23 @@ h3 {
 }
 
 .weather-day-indicator {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
 }
 
-/* ── Auth Pages ─────────────────────────────────────────── */
+/* ── Auth & Form Pages ───────────────────────────────────── */
 
 .login-page,
 .setup-page,
 .account-page,
 .admin-page {
-    max-width: 500px;
-    margin: 0 auto;
+    max-width: 480px;
+    margin: calc(var(--spacing, 16px) * 2) auto;
     padding: var(--spacing, 16px);
+}
+
+.account-page,
+.admin-page {
+    max-width: 700px;
 }
 
 .login-page form,
@@ -269,15 +425,20 @@ h3 {
 .admin-page form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: var(--spacing, 16px);
+    gap: 14px;
+    padding: calc(var(--spacing, 16px) * 1.5);
+    background: var(--surface, #16213e);
+    border: 1px solid var(--border, #334155);
+    border-radius: var(--radius, 8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 label {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     font-size: 0.85rem;
+    font-weight: 500;
     color: var(--text-muted, #94a3b8);
 }
 
@@ -285,14 +446,15 @@ input[type="text"],
 input[type="password"],
 input[type="email"],
 textarea {
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    padding: 10px 14px;
+    font-size: 0.95rem;
     font-family: var(--font, system-ui, sans-serif);
     background: var(--bg, #1a1a2e);
     border: 1px solid var(--border, #334155);
-    border-radius: var(--radius, 8px);
+    border-radius: calc(var(--radius, 8px) * 0.75);
     color: var(--text, #e2e8f0);
     outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 input[type="text"]:focus,
@@ -300,6 +462,7 @@ input[type="password"]:focus,
 input[type="email"]:focus,
 textarea:focus {
     border-color: var(--accent, #3b82f6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #3b82f6) 15%, transparent);
 }
 
 textarea {
@@ -308,19 +471,24 @@ textarea {
 }
 
 button {
-    padding: 8px 16px;
+    padding: 10px 18px;
     font-size: 0.9rem;
+    font-weight: 600;
     font-family: var(--font, system-ui, sans-serif);
     background: var(--accent, #3b82f6);
     color: var(--accent-text, #ffffff);
     border: none;
-    border-radius: var(--radius, 8px);
+    border-radius: calc(var(--radius, 8px) * 0.75);
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s ease, transform 0.1s ease;
 }
 
 button:hover {
-    opacity: 0.85;
+    opacity: 0.88;
+}
+
+button:active {
+    transform: scale(0.98);
 }
 
 button:disabled {
@@ -328,17 +496,18 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* ── Error Messages ────────────────────────────────────── */
+/* ── Error Messages ──────────────────────────────────────── */
 
 .error {
     color: #ef4444;
     font-size: 0.85rem;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: rgba(239, 68, 68, 0.1);
-    border-radius: var(--radius, 8px);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: calc(var(--radius, 8px) * 0.75);
 }
 
-/* ── Account Page ───────────────────────────────────────── */
+/* ── Account Page ────────────────────────────────────────── */
 
 .session-row,
 .identity-row,
@@ -347,12 +516,13 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: var(--surface, #16213e);
     border: 1px solid var(--border, #334155);
     border-radius: var(--radius, 8px);
     margin-bottom: 6px;
     font-size: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .session-row span,
@@ -366,7 +536,7 @@ button:disabled {
 }
 
 .token-secret-display {
-    padding: 12px;
+    padding: 14px;
     background: var(--surface, #16213e);
     border: 1px solid var(--border, #334155);
     border-radius: var(--radius, 8px);
@@ -375,9 +545,10 @@ button:disabled {
 
 .token-secret-display code {
     display: block;
-    padding: 8px;
+    padding: 10px;
     background: var(--bg, #1a1a2e);
-    border-radius: 4px;
+    border: 1px solid var(--border, #334155);
+    border-radius: calc(var(--radius, 8px) * 0.5);
     font-size: 0.8rem;
     word-break: break-all;
     margin: 8px 0;
@@ -393,7 +564,7 @@ button:disabled {
     flex: 1;
 }
 
-/* ── Editors ────────────────────────────────────────────── */
+/* ── Editors ─────────────────────────────────────────────── */
 
 .editor {
     background: var(--surface, #16213e);
@@ -401,6 +572,7 @@ button:disabled {
     border-radius: var(--radius, 8px);
     padding: var(--spacing, 16px);
     margin-bottom: var(--spacing, 16px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .editor form {
@@ -424,12 +596,17 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: var(--bg, #1a1a2e);
     border: 1px solid var(--border, #334155);
     border-radius: var(--radius, 8px);
     cursor: grab;
     font-size: 0.85rem;
+    transition: border-color 0.15s ease;
+}
+
+.reorder-list li:hover {
+    border-color: var(--accent, #3b82f6);
 }
 
 .reorder-list li:active {
@@ -441,11 +618,11 @@ button:disabled {
 }
 
 .reorder-list li button {
-    padding: 4px 10px;
+    padding: 4px 12px;
     font-size: 0.75rem;
 }
 
-/* ── Settings ──────────────────────────────────────────── */
+/* ── Settings ───────────────────────────────────────────── */
 
 .settings-section {
     background: var(--surface, #16213e);
@@ -453,6 +630,7 @@ button:disabled {
     border-radius: var(--radius, 8px);
     padding: var(--spacing, 16px);
     margin-bottom: var(--spacing, 16px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .settings-section label {
@@ -474,14 +652,25 @@ button:disabled {
 .theme-item {
     display: flex;
     gap: 12px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: var(--bg, #1a1a2e);
     border: 1px solid var(--border, #334155);
     border-radius: var(--radius, 8px);
     font-size: 0.85rem;
 }
 
-/* ── Responsive ─────────────────────────────────────────── */
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .navbar {
+        flex-wrap: wrap;
+    }
+
+    .navbar h1 {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+}
 
 @media (max-width: 600px) {
     .tiles {
@@ -494,5 +683,14 @@ button:disabled {
 
     .token-create-form {
         flex-direction: column;
+    }
+
+    .add-content {
+        flex-direction: column;
+    }
+
+    .add-content a {
+        text-align: center;
+        justify-content: center;
     }
 }

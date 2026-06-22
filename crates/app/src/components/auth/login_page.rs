@@ -18,7 +18,13 @@ pub fn LoginPage() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match crate::server::auth::login(input).await {
                 Ok(_) => {
-                    leptos_router::hooks::use_navigate()("/", Default::default());
+                    // Full page reload ensures the new session cookie is sent with the request,
+                    // so SSR picks up the authenticated state immediately.
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.location().assign("/");
+                    } else {
+                        leptos_router::hooks::use_navigate()("/", Default::default());
+                    }
                 }
                 Err(e) => {
                     error.set(Some(e.to_string()));
