@@ -432,22 +432,6 @@ pub fn BookmarkEditor(
     }
 }
 
-/// Shared nav bar for edit pages.
-fn edit_navbar() -> impl IntoView {
-    use leptos_router::components::A;
-    view! {
-        <nav class="navbar">
-            <h1>"Emberwake"</h1>
-            <A href="/edit/service">"Add Service"</A>
-            <A href="/edit/bookmark">"Add Bookmark"</A>
-            <A href="/edit/category">"Add Category"</A>
-            <A href="/">"Dashboard"</A>
-            <A href="/settings">"Settings"</A>
-            <A href="/account">"Account"</A>
-        </nav>
-    }
-}
-
 /// Cross-platform delete confirmation dialog.
 /// Uses web-sys confirm_with_message on WASM, returns true on SSR.
 fn confirm_delete(message: &str) -> bool {
@@ -505,7 +489,7 @@ pub fn EditPage() -> impl IntoView {
                 user.get().map(|u| {
                     match u {
                         Some(_) => view! {
-                            {edit_navbar()}
+                            <crate::components::Navbar />
                             <h2>"Content Editors"</h2>
                             <Suspense fallback=|| view! { <p>"Loading categories..."</p> }>
                                 {move || {
@@ -584,7 +568,7 @@ pub fn ServiceEditPage() -> impl IntoView {
                 user.get().map(|u| {
                     match u {
                         Some(_) => view! {
-                            {edit_navbar()}
+                            <crate::components::Navbar />
                             <h2>"Services"</h2>
                             <Suspense fallback=|| view! { <p>"Loading services..."</p> }>
                                 {move || {
@@ -630,7 +614,7 @@ pub fn BookmarkEditPage() -> impl IntoView {
                 user.get().map(|u| {
                     match u {
                         Some(_) => view! {
-                            {edit_navbar()}
+                            <crate::components::Navbar />
                             <h2>"Bookmarks"</h2>
                             <Suspense fallback=|| view! { <p>"Loading bookmarks..."</p> }>
                                 {move || {
@@ -677,7 +661,7 @@ pub fn CategoryEditPage() -> impl IntoView {
                 user.get().map(|u| {
                     match u {
                         Some(_) => view! {
-                            {edit_navbar()}
+                            <crate::components::Navbar />
                             <h2>"Categories"</h2>
                             <Suspense fallback=|| view! { <p>"Loading categories..."</p> }>
                                 {move || {

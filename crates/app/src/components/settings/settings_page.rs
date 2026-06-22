@@ -2,6 +2,7 @@
 //! Non-admins are redirected. Shows search providers, integration toggles,
 //! weather config (secret field), auth toggles, and theme builder.
 
+use crate::components::Navbar;
 use crate::domain::{SettingsView, ThemeSummary};
 use leptos::prelude::*;
 
@@ -27,6 +28,7 @@ pub fn SettingsPage() -> impl IntoView {
     );
 
     view! {
+        <Navbar />
         <h1>"Settings"</h1>
         <Suspense fallback=|| view! { <p>"Loading settings..."</p> }>
             {move || {

@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::{Style, provide_meta_context};
-use leptos_router::components::{A, Redirect, Route, Router, Routes};
+use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
 
 pub mod components;
@@ -13,7 +13,7 @@ use components::dashboard::Dashboard;
 use components::editors::{BookmarkEditPage, CategoryEditPage, EditPage, ServiceEditPage};
 use components::search::SearchIsland;
 use components::settings::SettingsPage;
-use domain::{DashboardView, Role, SetupState};
+use domain::{DashboardView, SetupState};
 
 /// Root application component — renders Router content and theme styles.
 /// The HTML document shell (DOCTYPE, <head>, hydration scripts) is provided by
@@ -121,10 +121,6 @@ fn HomePage() -> impl IntoView {
                 .unwrap_or(SetupState::Complete)
         },
     );
-    let user = Resource::new(
-        || (),
-        |_| async { server::auth::current_user().await.unwrap_or(None) },
-    );
     let dashboard = Resource::new(
         || (),
         |_| async {
@@ -138,18 +134,6 @@ fn HomePage() -> impl IntoView {
         |_| async { server::weather_read::get_weather().await.unwrap_or(None) },
     );
 
-    let logout = move |_| {
-        leptos::task::spawn_local(async move {
-            let _ = server::auth::logout().await;
-            // Full page reload ensures the cleared session cookie takes effect immediately.
-            if let Some(window) = web_sys::window() {
-                let _ = window.location().assign("/login");
-            } else {
-                leptos_router::hooks::use_navigate()("/login", Default::default());
-            }
-        });
-    };
-
     view! {
         <Suspense fallback=|| view! { <p>"Loading..."</p> }>
             {move || {
@@ -159,31 +143,7 @@ fn HomePage() -> impl IntoView {
                             <Redirect path="/setup" />
                         }.into_any(),
                         SetupState::Complete => view! {
-                            <nav class="navbar">
-                                <h1>"Emberwake"</h1>
-                                {move || {
-                                    user.get().map(|u| {
-                                        match u {
-                                            Some(u) => view! {
-                                                <A href="/edit/service">"Add Service"</A>
-                                                <A href="/edit/bookmark">"Add Bookmark"</A>
-                                                <A href="/edit/category">"Add Category"</A>
-                                                <A href="/settings">"Settings"</A>
-                                                <A href="/account">"Account"</A>
-                                                {if u.role == Role::Admin {
-                                                    view! { <A href="/admin">"Admin"</A> }.into_any()
-                                                } else {
-                                                    ().into_any()
-                                                }}
-                                                <button on:click=logout>"Logout"</button>
-                                            }.into_any(),
-                                            None => view! {
-                                                <A href="/login">"Login"</A>
-                                            }.into_any()
-                                        }
-                                    })
-                                }}
-                            </nav>
+                            <components::Navbar />
                             <Suspense fallback=|| view! { <p>"Loading..."</p> }>
                                 {move || {
                                     dashboard
