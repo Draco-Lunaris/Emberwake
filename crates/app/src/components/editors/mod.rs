@@ -447,3 +447,97 @@ fn confirm_delete(message: &str) -> bool {
             .unwrap_or(false)
     }
 }
+
+// --- Edit Page ---
+
+/// Edit page — authenticated content management with category, service, and bookmark editors.
+/// Redirects to /login if not authenticated. Renders all three editor components in sections.
+#[component]
+pub fn EditPage() -> impl IntoView {
+    use crate::domain::{CategoryWithItems, ServiceFilter};
+    use crate::server::{auth, content_read};
+    use leptos_router::components::{A, Redirect};
+
+    let user = Resource::new(
+        || (),
+        |_| async { auth::current_user().await.unwrap_or(None) },
+    );
+
+    let categories_resource = Resource::new(
+        || (),
+        |_| async { content_read::list_categories().await.unwrap_or_default() },
+    );
+
+    let services_resource = Resource::new(
+        || (),
+        |_| async {
+            content_read::list_services(ServiceFilter::default())
+                .await
+                .unwrap_or_default()
+        },
+    );
+
+    let bookmarks_resource = Resource::new(
+        || (),
+        |_| async { content_read::list_bookmarks(None).await.unwrap_or_default() },
+    );
+
+    view! {
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+            {move || {
+                user.get().map(|u| {
+                    match u {
+                        Some(_) => view! {
+                            <nav class="navbar">
+                                <h1>"Emberwake"</h1>
+                                <A href="/">"Dashboard"</A>
+                                <A href="/settings">"Settings"</A>
+                                <A href="/account">"Account"</A>
+                            </nav>
+                            <h2>"Content Editors"</h2>
+                            <Suspense fallback=|| view! { <p>"Loading categories..."</p> }>
+                                {move || {
+                                    categories_resource.get().map(|cats: Vec<CategoryWithItems>| {
+                                        let categories: Vec<Category> = cats
+                                            .into_iter()
+                                            .map(|c| Category {
+                                                id: c.id,
+                                                name: c.name,
+                                                icon: c.icon,
+                                                order_index: c.order_index,
+                                                visibility: c.visibility,
+                                                created_at: String::new(),
+                                                updated_at: String::new(),
+                                            })
+                                            .collect();
+                                        let (cat_signal, set_cat) = signal(categories);
+                                        view! { <CategoryEditor categories=cat_signal set_categories=set_cat /> }
+                                    })
+                                }}
+                            </Suspense>
+                            <Suspense fallback=|| view! { <p>"Loading services..."</p> }>
+                                {move || {
+                                    services_resource.get().map(|svcs: Vec<Service>| {
+                                        let (svc_signal, set_svc) = signal(svcs);
+                                        view! { <ServiceEditor services=svc_signal set_services=set_svc /> }
+                                    })
+                                }}
+                            </Suspense>
+                            <Suspense fallback=|| view! { <p>"Loading bookmarks..."</p> }>
+                                {move || {
+                                    bookmarks_resource.get().map(|bms: Vec<Bookmark>| {
+                                        let (bm_signal, set_bm) = signal(bms);
+                                        view! { <BookmarkEditor bookmarks=bm_signal set_bookmarks=set_bm category_id=None /> }
+                                    })
+                                }}
+                            </Suspense>
+                        }.into_any(),
+                        None => view! {
+                            <Redirect path="/login" />
+                        }.into_any(),
+                    }
+                })
+            }}
+        </Suspense>
+    }
+}

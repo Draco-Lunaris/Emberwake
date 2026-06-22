@@ -10,6 +10,7 @@ pub mod server;
 
 use components::auth::{AccountPage, AdminPage, LoginPage, SetupPage};
 use components::dashboard::Dashboard;
+use components::editors::EditPage;
 use components::search::SearchIsland;
 use components::settings::SettingsPage;
 use domain::{DashboardView, Role, SetupState};
@@ -58,6 +59,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/login") view=LoginPage />
                     <Route path=path!("/account") view=AccountPage />
                     <Route path=path!("/admin") view=AdminPage />
+                    <Route path=path!("/edit") view=EditPage />
                     <Route path=path!("/settings") view=SettingsPage />
                 </Routes>
             </main>
@@ -200,9 +202,9 @@ fn HomePage() -> impl IntoView {
                                     if u.is_some() {
                                         view! {
                                             <div class="add-content">
-                                                <A href="/settings">"Add Service"</A>
-                                                <A href="/settings">"Add Bookmark"</A>
-                                                <A href="/settings">"Add Category"</A>
+                                                <A href="/edit">"Add Service"</A>
+                                                <A href="/edit">"Add Bookmark"</A>
+                                                <A href="/edit">"Add Category"</A>
                                             </div>
                                         }.into_any()
                                     } else {
