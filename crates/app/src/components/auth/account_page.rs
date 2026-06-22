@@ -4,6 +4,7 @@ use crate::domain::{
     ApiTokenInput, ApiTokenSecret, ApiTokenSummary, ExternalIdentity, SessionSummary,
 };
 use leptos::prelude::*;
+use leptos_router::components::A;
 
 #[component]
 pub fn AccountPage() -> impl IntoView {
@@ -49,6 +50,13 @@ pub fn AccountPage() -> impl IntoView {
     };
 
     view! {
+        <nav class="navbar">
+            <h1>"Emberwake"</h1>
+            <A href="/">"Dashboard"</A>
+            <A href="/settings">"Settings"</A>
+            <A href="/account">"Account"</A>
+            <button on:click=logout>"Logout"</button>
+        </nav>
         <div class="account-page">
             <h1>"Account"</h1>
             <button on:click=logout>"Sign Out"</button>

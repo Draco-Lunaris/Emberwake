@@ -10,7 +10,7 @@ pub mod server;
 
 use components::auth::{AccountPage, AdminPage, LoginPage, SetupPage};
 use components::dashboard::Dashboard;
-use components::editors::EditPage;
+use components::editors::{BookmarkEditPage, CategoryEditPage, EditPage, ServiceEditPage};
 use components::search::SearchIsland;
 use components::settings::SettingsPage;
 use domain::{DashboardView, Role, SetupState};
@@ -60,6 +60,9 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/account") view=AccountPage />
                     <Route path=path!("/admin") view=AdminPage />
                     <Route path=path!("/edit") view=EditPage />
+                    <Route path=path!("/edit/service") view=ServiceEditPage />
+                    <Route path=path!("/edit/bookmark") view=BookmarkEditPage />
+                    <Route path=path!("/edit/category") view=CategoryEditPage />
                     <Route path=path!("/settings") view=SettingsPage />
                 </Routes>
             </main>
@@ -162,6 +165,9 @@ fn HomePage() -> impl IntoView {
                                     user.get().map(|u| {
                                         match u {
                                             Some(u) => view! {
+                                                <A href="/edit/service">"Add Service"</A>
+                                                <A href="/edit/bookmark">"Add Bookmark"</A>
+                                                <A href="/edit/category">"Add Category"</A>
                                                 <A href="/settings">"Settings"</A>
                                                 <A href="/account">"Account"</A>
                                                 {if u.role == Role::Admin {
@@ -197,21 +203,6 @@ fn HomePage() -> impl IntoView {
                                         })
                                 }}
                             </Suspense>
-                            {move || {
-                                user.get().map(|u| {
-                                    if u.is_some() {
-                                        view! {
-                                            <div class="add-content">
-                                                <A href="/edit">"Add Service"</A>
-                                                <A href="/edit">"Add Bookmark"</A>
-                                                <A href="/edit">"Add Category"</A>
-                                            </div>
-                                        }.into_any()
-                                    } else {
-                                        ().into_any()
-                                    }
-                                })
-                            }}
                             <Suspense fallback=|| view! { <p>"Loading..."</p> }>
                                 {move || {
                                     weather

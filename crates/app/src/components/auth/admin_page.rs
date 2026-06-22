@@ -2,6 +2,7 @@
 
 use crate::domain::{NewUserInput, Role, UserSummary};
 use leptos::prelude::*;
+use leptos_router::components::A;
 
 #[component]
 pub fn AdminPage() -> impl IntoView {
@@ -33,6 +34,13 @@ pub fn AdminPage() -> impl IntoView {
     };
 
     view! {
+        <nav class="navbar">
+            <h1>"Emberwake"</h1>
+            <A href="/">"Dashboard"</A>
+            <A href="/settings">"Settings"</A>
+            <A href="/account">"Account"</A>
+            <A href="/admin">"Admin"</A>
+        </nav>
         <div class="admin-page">
             <h1>"User Management"</h1>
             <h2>"Create User"</h2>

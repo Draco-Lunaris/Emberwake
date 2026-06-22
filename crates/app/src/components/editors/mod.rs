@@ -432,6 +432,22 @@ pub fn BookmarkEditor(
     }
 }
 
+/// Shared nav bar for edit pages.
+fn edit_navbar() -> impl IntoView {
+    use leptos_router::components::A;
+    view! {
+        <nav class="navbar">
+            <h1>"Emberwake"</h1>
+            <A href="/edit/service">"Add Service"</A>
+            <A href="/edit/bookmark">"Add Bookmark"</A>
+            <A href="/edit/category">"Add Category"</A>
+            <A href="/">"Dashboard"</A>
+            <A href="/settings">"Settings"</A>
+            <A href="/account">"Account"</A>
+        </nav>
+    }
+}
+
 /// Cross-platform delete confirmation dialog.
 /// Uses web-sys confirm_with_message on WASM, returns true on SSR.
 fn confirm_delete(message: &str) -> bool {
@@ -452,11 +468,12 @@ fn confirm_delete(message: &str) -> bool {
 
 /// Edit page — authenticated content management with category, service, and bookmark editors.
 /// Redirects to /login if not authenticated. Renders all three editor components in sections.
+/// Kept for backward compatibility; prefer the dedicated /edit/service, /edit/bookmark, /edit/category routes.
 #[component]
 pub fn EditPage() -> impl IntoView {
     use crate::domain::{CategoryWithItems, ServiceFilter};
     use crate::server::{auth, content_read};
-    use leptos_router::components::{A, Redirect};
+    use leptos_router::components::Redirect;
 
     let user = Resource::new(
         || (),
@@ -488,12 +505,7 @@ pub fn EditPage() -> impl IntoView {
                 user.get().map(|u| {
                     match u {
                         Some(_) => view! {
-                            <nav class="navbar">
-                                <h1>"Emberwake"</h1>
-                                <A href="/">"Dashboard"</A>
-                                <A href="/settings">"Settings"</A>
-                                <A href="/account">"Account"</A>
-                            </nav>
+                            {edit_navbar()}
                             <h2>"Content Editors"</h2>
                             <Suspense fallback=|| view! { <p>"Loading categories..."</p> }>
                                 {move || {
@@ -528,6 +540,162 @@ pub fn EditPage() -> impl IntoView {
                                     bookmarks_resource.get().map(|bms: Vec<Bookmark>| {
                                         let (bm_signal, set_bm) = signal(bms);
                                         view! { <BookmarkEditor bookmarks=bm_signal set_bookmarks=set_bm category_id=None /> }
+                                    })
+                                }}
+                            </Suspense>
+                        }.into_any(),
+                        None => view! {
+                            <Redirect path="/login" />
+                        }.into_any(),
+                    }
+                })
+            }}
+        </Suspense>
+    }
+}
+
+// --- Service Edit Page ---
+
+/// Service edit page — shows only the ServiceEditor form and list of existing services.
+/// Redirects to /login if not authenticated.
+#[component]
+pub fn ServiceEditPage() -> impl IntoView {
+    use crate::domain::ServiceFilter;
+    use crate::server::{auth, content_read};
+    use leptos_router::components::Redirect;
+
+    let user = Resource::new(
+        || (),
+        |_| async { auth::current_user().await.unwrap_or(None) },
+    );
+
+    let services_resource = Resource::new(
+        || (),
+        |_| async {
+            content_read::list_services(ServiceFilter::default())
+                .await
+                .unwrap_or_default()
+        },
+    );
+
+    view! {
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+            {move || {
+                user.get().map(|u| {
+                    match u {
+                        Some(_) => view! {
+                            {edit_navbar()}
+                            <h2>"Services"</h2>
+                            <Suspense fallback=|| view! { <p>"Loading services..."</p> }>
+                                {move || {
+                                    services_resource.get().map(|svcs: Vec<Service>| {
+                                        let (svc_signal, set_svc) = signal(svcs);
+                                        view! { <ServiceEditor services=svc_signal set_services=set_svc /> }
+                                    })
+                                }}
+                            </Suspense>
+                        }.into_any(),
+                        None => view! {
+                            <Redirect path="/login" />
+                        }.into_any(),
+                    }
+                })
+            }}
+        </Suspense>
+    }
+}
+
+// --- Bookmark Edit Page ---
+
+/// Bookmark edit page — shows only the BookmarkEditor form and list of existing bookmarks.
+/// Redirects to /login if not authenticated.
+#[component]
+pub fn BookmarkEditPage() -> impl IntoView {
+    use crate::server::{auth, content_read};
+    use leptos_router::components::Redirect;
+
+    let user = Resource::new(
+        || (),
+        |_| async { auth::current_user().await.unwrap_or(None) },
+    );
+
+    let bookmarks_resource = Resource::new(
+        || (),
+        |_| async { content_read::list_bookmarks(None).await.unwrap_or_default() },
+    );
+
+    view! {
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+            {move || {
+                user.get().map(|u| {
+                    match u {
+                        Some(_) => view! {
+                            {edit_navbar()}
+                            <h2>"Bookmarks"</h2>
+                            <Suspense fallback=|| view! { <p>"Loading bookmarks..."</p> }>
+                                {move || {
+                                    bookmarks_resource.get().map(|bms: Vec<Bookmark>| {
+                                        let (bm_signal, set_bm) = signal(bms);
+                                        view! { <BookmarkEditor bookmarks=bm_signal set_bookmarks=set_bm category_id=None /> }
+                                    })
+                                }}
+                            </Suspense>
+                        }.into_any(),
+                        None => view! {
+                            <Redirect path="/login" />
+                        }.into_any(),
+                    }
+                })
+            }}
+        </Suspense>
+    }
+}
+
+// --- Category Edit Page ---
+
+/// Category edit page — shows only the CategoryEditor form and list of existing categories.
+/// Redirects to /login if not authenticated.
+#[component]
+pub fn CategoryEditPage() -> impl IntoView {
+    use crate::domain::CategoryWithItems;
+    use crate::server::{auth, content_read};
+    use leptos_router::components::Redirect;
+
+    let user = Resource::new(
+        || (),
+        |_| async { auth::current_user().await.unwrap_or(None) },
+    );
+
+    let categories_resource = Resource::new(
+        || (),
+        |_| async { content_read::list_categories().await.unwrap_or_default() },
+    );
+
+    view! {
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+            {move || {
+                user.get().map(|u| {
+                    match u {
+                        Some(_) => view! {
+                            {edit_navbar()}
+                            <h2>"Categories"</h2>
+                            <Suspense fallback=|| view! { <p>"Loading categories..."</p> }>
+                                {move || {
+                                    categories_resource.get().map(|cats: Vec<CategoryWithItems>| {
+                                        let categories: Vec<Category> = cats
+                                            .into_iter()
+                                            .map(|c| Category {
+                                                id: c.id,
+                                                name: c.name,
+                                                icon: c.icon,
+                                                order_index: c.order_index,
+                                                visibility: c.visibility,
+                                                created_at: String::new(),
+                                                updated_at: String::new(),
+                                            })
+                                            .collect();
+                                        let (cat_signal, set_cat) = signal(categories);
+                                        view! { <CategoryEditor categories=cat_signal set_categories=set_cat /> }
                                     })
                                 }}
                             </Suspense>
