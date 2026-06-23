@@ -45,7 +45,7 @@ pub fn SetupPage() -> impl IntoView {
                 }.into_any()
             } else {
                 view! {
-                    <form on:submit=submit>
+                    <form on:submit=submit method="post" action="#">
                         <label>"Username"</label>
                         <input type="text" bind:value=username required />
                         <label>"Password"</label>

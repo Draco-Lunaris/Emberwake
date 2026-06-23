@@ -36,7 +36,7 @@ pub fn LoginPage() -> impl IntoView {
     view! {
         <div class="login-page">
             <h1>"Sign In"</h1>
-            <form on:submit=submit>
+            <form on:submit=submit method="post" action="#">
                 <label>"Username"</label>
                 <input type="text" bind:value=username required />
                 <label>"Password"</label>
