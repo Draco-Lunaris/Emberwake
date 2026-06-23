@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! Emberwake server entry point.
 //! Loads config, initializes DB pool, runs migrations, builds the Axum router,
 //! and serves the Leptos SSR application with security headers + telemetry.
