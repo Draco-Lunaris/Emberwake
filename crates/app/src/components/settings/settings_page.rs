@@ -10,7 +10,10 @@
 //! - Activate → calls set_active_theme; reload to see effect globally
 
 use crate::components::Navbar;
-use crate::domain::{DesignTokens, SettingsView, ThemeInput, ThemeSummary};
+use crate::domain::{
+    AuthSettings, DesignTokens, IntegrationSettings, SettingsPatch, SettingsView, ThemeInput,
+    ThemeSummary, WeatherSettings,
+};
 use leptos::prelude::*;
 use uuid::Uuid;
 
@@ -128,6 +131,23 @@ fn SettingsForm(settings: SettingsView) -> impl IntoView {
     let (oidc_enabled, set_oidc_enabled) = signal(settings.auth.oidc_enabled);
     let (passkeys_enabled, set_passkeys_enabled) = signal(settings.auth.passkeys_enabled);
 
+    let (save_status, set_save_status) = signal(Option::<String>::None);
+
+    let save_action = Action::new(move |patch: &SettingsPatch| {
+        let patch = patch.clone();
+        async move {
+            crate::server::settings::update_settings(patch)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    Effect::new(move || match save_action.value().get() {
+        Some(Ok(_)) => set_save_status.set(Some("✓ Settings saved".to_string())),
+        Some(Err(e)) => set_save_status.set(Some(format!("Error: {e}"))),
+        None => {}
+    });
+
     view! {
         // ── Search providers ─────────────────────────────────────
         <div class="settings-section">
@@ -238,6 +258,45 @@ fn SettingsForm(settings: SettingsView) -> impl IntoView {
                     />
                 </label>
             </div>
+        </div>
+
+        // ── Save ──────────────────────────────────────────────────
+        <div style="display:flex; align-items:center; gap:12px; margin-top:16px;">
+            <button on:click=move |_| {
+                set_save_status.set(None);
+                save_action.dispatch(SettingsPatch {
+                    integrations: Some(IntegrationSettings {
+                        docker_enabled: docker_enabled.get(),
+                        docker_socket: None,
+                        k8s_enabled: k8s_enabled.get(),
+                    }),
+                    weather: Some(WeatherSettings {
+                        enabled: weather_enabled.get(),
+                        location: {
+                            let loc = weather_location.get();
+                            if loc.is_empty() { None } else { Some(loc) }
+                        },
+                        api_key: {
+                            let key = weather_api_key.get();
+                            if key.is_empty() { None } else { Some(key) }
+                        },
+                        ..Default::default()
+                    }),
+                    auth: Some(AuthSettings {
+                        oidc_enabled: oidc_enabled.get(),
+                        passkeys_enabled: passkeys_enabled.get(),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                });
+            }>
+                "Save Settings"
+            </button>
+            {move || save_status.get().map(|msg| view! {
+                <span class=if msg.starts_with('✓') { "success-msg" } else { "error" }>
+                    {msg.clone()}
+                </span>
+            })}
         </div>
     }
 }
