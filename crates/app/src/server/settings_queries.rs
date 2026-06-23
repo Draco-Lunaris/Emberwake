@@ -439,6 +439,7 @@ pub async fn seed_builtin_themes(pool: &SqlitePool) -> Result<(), AppError> {
         spacing: Some("16px".into()),
         font: Some("system-ui, sans-serif".into()),
         mode: Some("light".into()),
+        ..Default::default()
     };
     let light_id = Uuid::now_v7();
     sqlx::query(
@@ -464,6 +465,7 @@ pub async fn seed_builtin_themes(pool: &SqlitePool) -> Result<(), AppError> {
         spacing: Some("16px".into()),
         font: Some("system-ui, sans-serif".into()),
         mode: Some("dark".into()),
+        ..Default::default()
     };
     let dark_id = Uuid::now_v7();
     sqlx::query(

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use leptos::prelude::*;
 use leptos_meta::{Style, provide_meta_context};
 use leptos_router::components::{Redirect, Route, Router, Routes};
@@ -73,36 +75,41 @@ pub fn App() -> impl IntoView {
 /// Format theme design tokens as CSS custom properties.
 fn format_theme_css(theme: &domain::Theme) -> String {
     let t = &theme.tokens;
+    let mut vars: Vec<(&str, &str)> = Vec::new();
+
+    macro_rules! push_token {
+        ($css_var:expr, $field:expr) => {
+            if let Some(ref v) = $field {
+                vars.push(($css_var, v.as_str()));
+            }
+        };
+    }
+
+    push_token!("--bg", t.bg);
+    push_token!("--bg-deep", t.bg_deep);
+    push_token!("--surface", t.surface);
+    push_token!("--surface-raised", t.surface_raised);
+    push_token!("--text", t.text);
+    push_token!("--text-muted", t.text_muted);
+    push_token!("--text-faint", t.text_faint);
+    push_token!("--accent", t.accent);
+    push_token!("--accent-text", t.accent_text);
+    push_token!("--accent-alt", t.accent_alt);
+    push_token!("--border", t.border);
+    push_token!("--radius", t.radius);
+    push_token!("--radius-sm", t.radius_sm);
+    push_token!("--radius-lg", t.radius_lg);
+    push_token!("--spacing", t.spacing);
+    push_token!("--font", t.font);
+    push_token!("--font-mono", t.font_mono);
+
+    if vars.is_empty() {
+        return String::new();
+    }
+
     let mut css = String::from(":root {\n");
-    if let Some(ref v) = t.bg {
-        css.push_str(&format!("  --bg: {};\n", v));
-    }
-    if let Some(ref v) = t.surface {
-        css.push_str(&format!("  --surface: {};\n", v));
-    }
-    if let Some(ref v) = t.text {
-        css.push_str(&format!("  --text: {};\n", v));
-    }
-    if let Some(ref v) = t.text_muted {
-        css.push_str(&format!("  --text-muted: {};\n", v));
-    }
-    if let Some(ref v) = t.accent {
-        css.push_str(&format!("  --accent: {};\n", v));
-    }
-    if let Some(ref v) = t.accent_text {
-        css.push_str(&format!("  --accent-text: {};\n", v));
-    }
-    if let Some(ref v) = t.border {
-        css.push_str(&format!("  --border: {};\n", v));
-    }
-    if let Some(ref v) = t.radius {
-        css.push_str(&format!("  --radius: {};\n", v));
-    }
-    if let Some(ref v) = t.spacing {
-        css.push_str(&format!("  --spacing: {};\n", v));
-    }
-    if let Some(ref v) = t.font {
-        css.push_str(&format!("  --font: {};\n", v));
+    for (name, val) in &vars {
+        css.push_str(&format!("  {}: {};\n", name, val));
     }
     css.push_str("}\n");
     css

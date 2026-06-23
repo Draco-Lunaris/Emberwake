@@ -489,19 +489,53 @@ pub struct WeatherReading {
 
 // --- Settings & theme domain types (US5) ---
 
-/// Design tokens for a theme (colors, spacing, radius, etc.).
+/// Design tokens — map to CSS custom properties injected into <head>.
+/// All fields are Option so a theme can override only what it needs;
+/// the CSS defaults in style/main.css handle the rest.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DesignTokens {
+    // ── Colour palette ──────────────────────────────
+    /// Page background. Dark default: #0d0d0f
     pub bg: Option<String>,
+    /// Deeper/inset background areas. Dark default: #080809
+    pub bg_deep: Option<String>,
+    /// Card / component surface. Dark default: #141418
     pub surface: Option<String>,
+    /// Elevated surface (modals, dropdowns). Dark default: #1e1e26
+    pub surface_raised: Option<String>,
+    /// Primary text. Dark default: #eeeef0
     pub text: Option<String>,
+    /// Secondary / label text. Dark default: #8888a0
     pub text_muted: Option<String>,
+    /// Placeholder / disabled text. Dark default: #484860
+    pub text_faint: Option<String>,
+    /// Accent colour (ember orange). Dark default: #f97316
     pub accent: Option<String>,
+    /// Text on accent backgrounds. Default: #ffffff
     pub accent_text: Option<String>,
+    /// Cool accent counterpoint (used sparingly). Default: #6366f1
+    pub accent_alt: Option<String>,
+    /// Subtle border / divider. Dark default: rgba(255,255,255,0.07)
     pub border: Option<String>,
+
+    // ── Shape ───────────────────────────────────────
+    /// Base border radius. Default: 10px
     pub radius: Option<String>,
+    /// Small border radius. Default: 6px
+    pub radius_sm: Option<String>,
+    /// Large border radius (cards/modals). Default: 16px
+    pub radius_lg: Option<String>,
+
+    // ── Spacing & type ──────────────────────────────
+    /// Base spacing unit. Default: 16px
     pub spacing: Option<String>,
+    /// Body font stack. Default: 'Inter', system-ui, sans-serif
     pub font: Option<String>,
+    /// Monospace font stack (URLs, tokens). Default: 'JetBrains Mono', monospace
+    pub font_mono: Option<String>,
+
+    // ── Compatibility alias ─────────────────────────
+    /// Light/dark mode hint stored with theme. Values: "dark" | "light"
     pub mode: Option<String>,
 }
 
