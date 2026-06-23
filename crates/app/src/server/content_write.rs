@@ -17,7 +17,7 @@ use crate::error::AppError;
 async fn require_auth_csrf(
     pool: &sqlx::SqlitePool,
 ) -> Result<crate::server::auth_queries::SessionInfo, AppError> {
-    crate::server::auth_helper::require_session_csrf(pool).await
+    crate::server::auth_helper::require_admin_csrf(pool).await
 }
 
 /// Write an audit event for a content mutation (best-effort).

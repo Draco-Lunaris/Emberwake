@@ -61,3 +61,13 @@ pub async fn require_session_csrf(pool: &SqlitePool) -> Result<SessionInfo, AppE
 
     Ok(info)
 }
+
+/// Extract session, validate CSRF, AND require admin role.
+/// Returns the SessionInfo if session, CSRF, and admin role are all valid.
+pub async fn require_admin_csrf(pool: &SqlitePool) -> Result<SessionInfo, AppError> {
+    let info = require_session_csrf(pool).await?;
+    if info.role != crate::domain::Role::Admin {
+        return Err(AppError::Forbidden);
+    }
+    Ok(info)
+}

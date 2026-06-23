@@ -309,7 +309,7 @@ pub async fn revoke_session(id: String) -> Result<(), ServerFnError<AppError>> {
             .await
             .map_err(|_| AppError::Internal)?
             .0;
-        let info = crate::server::auth_helper::require_session(&pool).await?;
+        let info = crate::server::auth_helper::require_session_csrf(&pool).await?;
 
         let own_sessions =
             crate::server::auth_queries::list_sessions_query(&pool, &info.user_id.to_string())
@@ -360,7 +360,7 @@ pub async fn revoke_all_other_sessions() -> Result<(), ServerFnError<AppError>> 
             .await
             .map_err(|_| AppError::Internal)?
             .0;
-        let info = crate::server::auth_helper::require_session(&pool).await?;
+        let info = crate::server::auth_helper::require_session_csrf(&pool).await?;
 
         let headers = leptos_axum::extract::<HeaderMap>().await.ok();
         let cookie_header = headers
@@ -436,7 +436,7 @@ pub async fn create_user(input: NewUserInput) -> Result<UserSummary, ServerFnErr
             .await
             .map_err(|_| AppError::Internal)?
             .0;
-        let info = crate::server::auth_helper::require_session(&pool).await?;
+        let info = crate::server::auth_helper::require_session_csrf(&pool).await?;
         if info.role != Role::Admin {
             return Err(ServerFnError::from(AppError::Forbidden));
         }
@@ -473,7 +473,7 @@ pub async fn update_user(
             .await
             .map_err(|_| AppError::Internal)?
             .0;
-        let info = crate::server::auth_helper::require_session(&pool).await?;
+        let info = crate::server::auth_helper::require_session_csrf(&pool).await?;
         if info.role != Role::Admin {
             return Err(ServerFnError::from(AppError::Forbidden));
         }
@@ -504,7 +504,7 @@ pub async fn deactivate_user(id: Uuid) -> Result<(), ServerFnError<AppError>> {
             .await
             .map_err(|_| AppError::Internal)?
             .0;
-        let info = crate::server::auth_helper::require_session(&pool).await?;
+        let info = crate::server::auth_helper::require_session_csrf(&pool).await?;
         if info.role != Role::Admin {
             return Err(ServerFnError::from(AppError::Forbidden));
         }
