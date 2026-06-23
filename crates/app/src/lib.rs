@@ -39,7 +39,7 @@ pub fn App() -> impl IntoView {
                     .map(|nonce| {
                         format!(
                             "default-src 'self'; \
-                             script-src 'self' 'nonce-{nonce}'; \
+                             script-src 'self' 'nonce-{nonce}' 'wasm-unsafe-eval'; \
                              style-src 'self' 'nonce-{nonce}'; \
                              img-src 'self' data: https:; \
                              font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; \
