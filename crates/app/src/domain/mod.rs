@@ -149,10 +149,13 @@ impl VisibilityFilter {
 // --- Input/Patch types for content CRUD ---
 
 /// Input for creating a category.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
 pub struct CategoryInput {
+    #[garde(length(min = 1))]
     pub name: String,
+    #[garde(skip)]
     pub icon: Option<String>,
+    #[garde(skip)]
     pub visibility: Visibility,
 }
 
@@ -165,18 +168,29 @@ pub struct CategoryPatch {
 }
 
 /// Input for creating a service.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
 pub struct ServiceInput {
+    #[garde(skip)]
     pub category_id: Option<Uuid>,
+    #[garde(length(min = 1))]
     pub name: String,
+    #[garde(url)]
     pub url: String,
+    #[garde(skip)]
     pub icon: Option<String>,
+    #[garde(skip)]
     pub description: Option<String>,
+    #[garde(skip)]
     pub is_pinned: bool,
+    #[garde(skip)]
     pub visibility: Visibility,
+    #[garde(skip)]
     pub monitor_enabled: bool,
+    #[garde(skip)]
     pub monitor_kind: Option<String>,
+    #[garde(skip)]
     pub monitor_target: Option<String>,
+    #[garde(skip)]
     pub monitor_interval_s: Option<i64>,
 }
 
@@ -197,12 +211,17 @@ pub struct ServicePatch {
 }
 
 /// Input for creating a bookmark.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
 pub struct BookmarkInput {
+    #[garde(skip)]
     pub category_id: Option<Uuid>,
+    #[garde(length(min = 1))]
     pub name: String,
+    #[garde(url)]
     pub url: String,
+    #[garde(skip)]
     pub icon: Option<String>,
+    #[garde(skip)]
     pub visibility: Visibility,
 }
 
@@ -262,17 +281,22 @@ pub enum SetupState {
 }
 
 /// Input for first-run admin setup.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
 pub struct AdminSetupInput {
+    #[garde(length(min = 1))]
     pub username: String,
+    #[garde(length(min = 1))]
     pub password: String,
+    #[garde(skip)]
     pub email: Option<String>,
 }
 
 /// Input for login.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
 pub struct LoginInput {
+    #[garde(length(min = 1))]
     pub username: String,
+    #[garde(length(min = 1))]
     pub password: String,
 }
 
@@ -300,11 +324,15 @@ pub struct UserSummary {
 }
 
 /// Input for creating a new user (admin action).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
 pub struct NewUserInput {
+    #[garde(length(min = 1))]
     pub username: String,
+    #[garde(length(min = 1))]
     pub password: String,
+    #[garde(skip)]
     pub email: Option<String>,
+    #[garde(skip)]
     pub role: Role,
 }
 
