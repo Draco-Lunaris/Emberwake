@@ -196,8 +196,34 @@ pub fn load() -> Result<Config, figment::Error> {
     Ok(config)
 }
 
-fn resolve_file_secrets(_config: &mut Config) {
-    // Future: OIDC client secret, weather API key, etc.
+fn resolve_file_secrets(config: &mut Config) {
+    // server_key: EMBERWAKE__SERVER_KEY_FILE
+    if let Ok(path) = std::env::var("EMBERWAKE__SERVER_KEY_FILE") {
+        match std::fs::read_to_string(&path) {
+            Ok(content) => {
+                config.server_key = content.trim().to_string();
+                info!("Loaded server_key from file: {path}");
+            }
+            Err(e) => {
+                panic!("EMBERWAKE__SERVER_KEY_FILE is set to '{path}' but file is unreadable: {e}");
+            }
+        }
+    }
+
+    // oidc.client_secret: EMBERWAKE__OIDC__CLIENT_SECRET_FILE
+    if let Ok(path) = std::env::var("EMBERWAKE__OIDC__CLIENT_SECRET_FILE") {
+        match std::fs::read_to_string(&path) {
+            Ok(content) => {
+                config.oidc.client_secret = content.trim().to_string();
+                info!("Loaded oidc.client_secret from file: {path}");
+            }
+            Err(e) => {
+                panic!(
+                    "EMBERWAKE__OIDC__CLIENT_SECRET_FILE is set to '{path}' but file is unreadable: {e}"
+                );
+            }
+        }
+    }
 }
 
 /// Ensure the parent directory of the database path exists.
