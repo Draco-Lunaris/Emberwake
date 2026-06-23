@@ -11,6 +11,7 @@ use leptos::prelude::*;
 use leptos_axum::{LeptosRoutes, file_and_error_handler, generate_route_list};
 use tower_http::set_header::SetResponseHeaderLayer;
 
+use server::security::rate_limit;
 use server::{audit, config, db, integrations, monitor, sse, state::AppState, telemetry};
 
 /// Shell function for SSR rendering — wraps App in HTML document.
@@ -42,6 +43,10 @@ async fn main() {
     let config = config::load().expect("failed to load configuration");
 
     telemetry::init_tracing(&config.telemetry.log_level);
+    telemetry::register_request_counter();
+    if let Some(ref endpoint) = config.telemetry.otlp_endpoint {
+        telemetry::init_otlp(endpoint);
+    }
     tracing::info!("Starting Emberwake server");
 
     config::ensure_db_dir(&config.db_path).expect("failed to create db directory");
@@ -110,10 +115,24 @@ async fn main() {
     };
     let challenge_store = app::server::extended_auth::ChallengeStore::new();
 
+    let public_api = server::public_api::public_api_routes();
+    let oidc = server::auth::oidc::oidc_routes();
+
+    let public_api = if config.security.rate_limit_enabled {
+        public_api.layer(rate_limit::token_governor())
+    } else {
+        public_api
+    };
+    let oidc = if config.security.rate_limit_enabled {
+        oidc.layer(rate_limit::login_governor())
+    } else {
+        oidc
+    };
+
     let app = axum::Router::<AppState>::new()
         .merge(telemetry::health_routes())
-        .merge(server::auth::oidc::oidc_routes())
-        .merge(server::public_api::public_api_routes())
+        .merge(oidc)
+        .merge(public_api)
         .merge(sse::handler::sse_routes())
         .leptos_routes(&state, routes, {
             let shell_options = options.clone();
@@ -151,8 +170,15 @@ async fn main() {
             m_cost: config.argon2.m_cost,
             t_cost: config.argon2.t_cost,
             p_cost: config.argon2.p_cost,
-        }))
-        .with_state(state);
+        }));
+
+    let app = if config.security.rate_limit_enabled {
+        app.layer(rate_limit::default_governor())
+    } else {
+        app
+    };
+
+    let app = app.with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&config.bind_addr)
         .await

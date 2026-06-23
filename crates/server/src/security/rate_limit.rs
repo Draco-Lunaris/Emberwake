@@ -1,12 +1,13 @@
 //! Rate limiting via tower_governor with per-route policies.
 //! Login/token/import routes get stricter limits.
 
+use axum::body::Body;
 use governor::middleware::NoOpMiddleware;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::PeerIpKeyExtractor;
 
-type DefaultGovernorLayer = GovernorLayer<PeerIpKeyExtractor, NoOpMiddleware>;
+type DefaultGovernorLayer = GovernorLayer<PeerIpKeyExtractor, NoOpMiddleware, Body>;
 
 /// Default rate limit: 60 requests per minute per IP (general).
 pub fn default_governor() -> DefaultGovernorLayer {
@@ -15,9 +16,7 @@ pub fn default_governor() -> DefaultGovernorLayer {
         .burst_size(60)
         .finish()
         .expect("valid governor config");
-    GovernorLayer {
-        config: config.into(),
-    }
+    GovernorLayer::new(config)
 }
 
 /// Strict rate limit for login: 10 requests per minute per IP.
@@ -27,9 +26,7 @@ pub fn login_governor() -> DefaultGovernorLayer {
         .burst_size(10)
         .finish()
         .expect("valid governor config");
-    GovernorLayer {
-        config: config.into(),
-    }
+    GovernorLayer::new(config)
 }
 
 /// Strict rate limit for token operations: 20 requests per minute per IP.
@@ -39,9 +36,7 @@ pub fn token_governor() -> DefaultGovernorLayer {
         .burst_size(20)
         .finish()
         .expect("valid governor config");
-    GovernorLayer {
-        config: config.into(),
-    }
+    GovernorLayer::new(config)
 }
 
 /// Strict rate limit for import: 5 requests per minute per IP.
@@ -51,7 +46,5 @@ pub fn import_governor() -> DefaultGovernorLayer {
         .burst_size(5)
         .finish()
         .expect("valid governor config");
-    GovernorLayer {
-        config: config.into(),
-    }
+    GovernorLayer::new(config)
 }
