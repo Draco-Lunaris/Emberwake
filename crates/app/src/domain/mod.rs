@@ -395,6 +395,13 @@ pub struct RedirectUrl {
     pub url: String,
 }
 
+/// Summary of a registered passkey (for account UI listing).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasskeySummary {
+    pub id: String,
+    pub created_at: String,
+}
+
 /// WebAuthn credential creation options (JSON sent to navigator.credentials.create).
 /// Uses serde_json::Value to avoid adding webauthn-rs-proto to the app crate.
 #[derive(Debug, Clone, Serialize, Deserialize)]

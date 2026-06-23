@@ -6,7 +6,8 @@ use uuid::Uuid;
 
 use crate::domain::{
     ApiTokenInput, ApiTokenSecret, ApiTokenSummary, AuthResponse, CredentialCreationOptions,
-    ExternalIdentity, RedirectUrl, RegisterResponse, RequestOptions, SessionSummary,
+    ExternalIdentity, PasskeySummary, RedirectUrl, RegisterResponse, RequestOptions,
+    SessionSummary,
 };
 use crate::error::AppError;
 
@@ -127,7 +128,7 @@ pub async fn unlink_external_identity(id: Uuid) -> Result<(), ServerFnError<AppE
 // --- WebAuthn passkeys ---
 
 #[cfg(feature = "ssr")]
-fn build_webauthn(rp_info: &WebAuthnRpInfo) -> Result<Webauthn, AppError> {
+pub fn build_webauthn(rp_info: &WebAuthnRpInfo) -> Result<Webauthn, AppError> {
     let origin = Url::parse(&rp_info.rp_origin).map_err(|_| AppError::Internal)?;
     let builder = WebauthnBuilder::new(&rp_info.rp_id, &origin).map_err(|_| AppError::Internal)?;
     let builder = builder.rp_name("Emberwake");
@@ -405,6 +406,68 @@ pub async fn passkey_login_finish(
     {
         let _ = resp;
         Err(ServerFnError::from(AppError::Internal))
+    }
+}
+
+/// List the current user's registered passkeys (for account UI).
+#[leptos::server]
+pub async fn list_passkeys() -> Result<Vec<PasskeySummary>, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = crate::server::auth_helper::require_session(&pool).await?;
+        let passkeys = crate::server::extended_auth_queries::list_passkeys_for_user(
+            &pool,
+            &info.user_id.to_string(),
+        )
+        .await?;
+        Ok(passkeys
+            .into_iter()
+            .map(|p| PasskeySummary {
+                id: p.id,
+                created_at: p.created_at,
+            })
+            .collect())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+/// Delete a registered passkey by ID. Requires session + CSRF.
+#[leptos::server]
+pub async fn delete_passkey(id: String) -> Result<(), ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = crate::server::auth_helper::require_session_csrf(&pool).await?;
+        crate::server::extended_auth_queries::delete_passkey(&pool, &id, &info.user_id.to_string())
+            .await?;
+        crate::server::auth_queries::audit_write_query(
+            &pool,
+            Some(info.user_id),
+            "passkey_delete",
+            Some(&id),
+            None,
+            None,
+            "success",
+        )
+        .await;
+        Ok(())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = id;
+        Err(ServerFnError::from(AppError::Unauthorized))
     }
 }
 

@@ -157,6 +157,7 @@ pub struct PasskeyRecord {
     pub credential_id: Vec<u8>,
     pub public_key: Vec<u8>,
     pub sign_count: i64,
+    pub created_at: String,
 }
 
 /// Store a passkey credential for a user.
@@ -192,7 +193,7 @@ pub async fn find_passkey(
     credential_id: &[u8],
 ) -> Result<Option<PasskeyRecord>, AppError> {
     let row = sqlx::query(
-        "SELECT id, user_id, credential_id, public_key, sign_count \
+        "SELECT id, user_id, credential_id, public_key, sign_count, created_at \
          FROM passkey_credential WHERE credential_id = ?",
     )
     .bind(credential_id)
@@ -205,6 +206,7 @@ pub async fn find_passkey(
         credential_id: r.get("credential_id"),
         public_key: r.get("public_key"),
         sign_count: r.get("sign_count"),
+        created_at: r.get("created_at"),
     }))
 }
 
@@ -228,7 +230,7 @@ pub async fn list_passkeys_for_user(
     user_id: &str,
 ) -> Result<Vec<PasskeyRecord>, AppError> {
     let rows = sqlx::query(
-        "SELECT id, user_id, credential_id, public_key, sign_count \
+        "SELECT id, user_id, credential_id, public_key, sign_count, created_at \
          FROM passkey_credential WHERE user_id = ? ORDER BY created_at ASC",
     )
     .bind(user_id)
@@ -243,6 +245,7 @@ pub async fn list_passkeys_for_user(
             credential_id: r.get("credential_id"),
             public_key: r.get("public_key"),
             sign_count: r.get("sign_count"),
+            created_at: r.get("created_at"),
         })
         .collect())
 }
