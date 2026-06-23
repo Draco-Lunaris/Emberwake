@@ -24,3 +24,58 @@ pub async fn test_pool() -> SqlitePool {
 
     pool
 }
+
+/// Build a test AppState suitable for Axum router tests.
+#[allow(dead_code)]
+pub fn build_test_state(pool: SqlitePool, server_key: &str) -> server::state::AppState {
+    use std::sync::Arc;
+
+    use leptos::prelude::LeptosOptions;
+    use server::audit::AuditWriter;
+    use server::config::Config;
+    use server::sse::SseHub;
+
+    let config = Config {
+        db_path: "test".to_string(),
+        bind_addr: "0.0.0.0:0".to_string(),
+        server_key: server_key.to_string(),
+        ..Default::default()
+    };
+
+    server::state::AppState {
+        leptos_options: LeptosOptions::builder()
+            .output_name("emberwake")
+            .site_addr("0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap())
+            .site_root("target/site")
+            .build(),
+        db: pool.clone(),
+        config: Arc::new(config),
+        audit: Arc::new(AuditWriter::new(pool)),
+        sse_hub: SseHub::new(256),
+    }
+}
+
+/// Build a test AppState with a custom Config (for OIDC-enabled tests, etc.).
+#[allow(dead_code)]
+pub fn build_test_state_with_config(
+    pool: SqlitePool,
+    config: server::config::Config,
+) -> server::state::AppState {
+    use std::sync::Arc;
+
+    use leptos::prelude::LeptosOptions;
+    use server::audit::AuditWriter;
+    use server::sse::SseHub;
+
+    server::state::AppState {
+        leptos_options: LeptosOptions::builder()
+            .output_name("emberwake")
+            .site_addr("0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap())
+            .site_root("target/site")
+            .build(),
+        db: pool.clone(),
+        config: Arc::new(config),
+        audit: Arc::new(AuditWriter::new(pool)),
+        sse_hub: SseHub::new(256),
+    }
+}

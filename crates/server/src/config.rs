@@ -7,7 +7,7 @@ use std::path::Path;
 use tracing::info;
 
 /// Top-level application configuration.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default = "default_db_path")]
     pub db_path: String,
