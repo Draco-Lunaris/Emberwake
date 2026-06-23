@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use leptos::prelude::*;
-use leptos_meta::{Style, provide_meta_context};
+use leptos_meta::{Meta, Style, provide_meta_context};
 use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::path;
 
@@ -32,6 +32,26 @@ pub fn App() -> impl IntoView {
     );
 
     view! {
+        <Meta
+            http_equiv="Content-Security-Policy"
+            content=move || {
+                leptos::nonce::use_nonce()
+                    .map(|nonce| {
+                        format!(
+                            "default-src 'self'; \
+                             script-src 'self' 'nonce-{nonce}'; \
+                             style-src 'self' 'nonce-{nonce}'; \
+                             img-src 'self' data: https:; \
+                             font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; \
+                             connect-src 'self'; \
+                             frame-ancestors 'none'; \
+                             base-uri 'self'; \
+                             form-action 'self'"
+                        )
+                    })
+                    .unwrap_or_default()
+            }
+        />
         <Suspense fallback=|| view! { <p>"Loading..."</p> }>
             {move || {
                 theme.get().map(|t| {
