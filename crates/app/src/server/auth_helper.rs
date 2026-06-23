@@ -44,12 +44,20 @@ pub async fn require_session_csrf(pool: &SqlitePool) -> Result<SessionInfo, AppE
         .await
         .map_err(|_| AppError::Internal)?;
 
-    let csrf_header = headers
+    let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok());
+    let csrf_from_cookie = auth_queries::parse_csrf_cookie(cookie_header);
+    let csrf_from_header = headers
         .get("x-csrf-token")
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+        .unwrap_or("")
+        .to_string();
+    let csrf_provided = if !csrf_from_cookie.is_empty() {
+        csrf_from_cookie
+    } else {
+        csrf_from_header
+    };
 
-    auth_queries::validate_csrf(csrf_header, &info.csrf_token)?;
+    auth_queries::validate_csrf(&csrf_provided, &info.csrf_token)?;
 
     Ok(info)
 }

@@ -197,7 +197,7 @@ pub async fn oidc_callback(
             .unwrap_or(false);
 
             if approved {
-                let (token, _) = app::server::auth_queries::create_session(
+                let (token, csrf) = app::server::auth_queries::create_session(
                     &state.db,
                     &ext.user_id.to_string(),
                     None,
@@ -206,10 +206,12 @@ pub async fn oidc_callback(
                 .await
                 .unwrap_or_else(|_| (String::new(), String::new()));
 
-                let cookie = app::server::auth_queries::build_session_cookie(&token, false);
+                let session_cookie = app::server::auth_queries::build_session_cookie(&token, false);
+                let csrf_cookie = app::server::auth_queries::build_csrf_cookie(&csrf, false);
                 axum::response::Response::builder()
                     .status(302)
-                    .header("set-cookie", cookie)
+                    .header("set-cookie", session_cookie)
+                    .header("set-cookie", csrf_cookie)
                     .header("location", "/")
                     .body(axum::body::Body::from(""))
                     .unwrap()

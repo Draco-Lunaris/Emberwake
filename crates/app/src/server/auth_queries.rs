@@ -595,6 +595,7 @@ pub async fn audit_write_query(
 // --- Cookie helpers ---
 
 pub const SESSION_COOKIE_NAME: &str = "emberwake_session";
+pub const CSRF_COOKIE_NAME: &str = "emberwake_csrf";
 
 pub fn parse_session_cookie(cookie_header: Option<&str>) -> Option<String> {
     let header = cookie_header?;
@@ -626,6 +627,39 @@ pub fn build_clear_session_cookie(secure: bool) -> String {
         "{}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
         SESSION_COOKIE_NAME
     );
+    if secure {
+        cookie.push_str("; Secure");
+    }
+    cookie
+}
+
+pub fn parse_csrf_cookie(cookie_header: Option<&str>) -> String {
+    let header = match cookie_header {
+        Some(h) => h,
+        None => return String::new(),
+    };
+    for cookie in header.split(';') {
+        let cookie = cookie.trim();
+        if let Some((name, value)) = cookie.split_once('=')
+            && name.trim() == CSRF_COOKIE_NAME
+        {
+            return value.trim().to_string();
+        }
+    }
+    String::new()
+}
+
+pub fn build_csrf_cookie(token: &str, secure: bool) -> String {
+    let mut cookie = format!("{}={}; Path=/; SameSite=Lax", CSRF_COOKIE_NAME, token);
+    if secure {
+        cookie.push_str("; Secure");
+    }
+    cookie.push_str("; Max-Age=86400");
+    cookie
+}
+
+pub fn build_clear_csrf_cookie(secure: bool) -> String {
+    let mut cookie = format!("{}=; Path=/; SameSite=Lax; Max-Age=0", CSRF_COOKIE_NAME);
     if secure {
         cookie.push_str("; Secure");
     }
