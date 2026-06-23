@@ -192,3 +192,175 @@ fn invalid_scope_rejected() {
         assert!(matches!(result, Err(AppError::Validation(_))));
     });
 }
+
+// --- T044: HTTP bearer middleware tests through /api/v1/* endpoints ---
+
+/// Helper: build the public API router with a test state.
+fn build_api_router(pool: SqlitePool) -> axum::Router {
+    let state = common::build_test_state(pool, std::str::from_utf8(SERVER_KEY).unwrap());
+    server::public_api::public_api_routes().with_state(state)
+}
+
+/// T044: In-scope token → 200 OK.
+#[tokio::test]
+async fn http_bearer_in_scope_returns_200() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+    let admin_id = setup_admin(&pool).await;
+    let input = ApiTokenInput {
+        name: "http-in-scope".to_string(),
+        scopes: vec!["services:read".to_string()],
+        expires_at: None,
+    };
+    let secret = extended_auth_queries::create_api_token_query(
+        &pool,
+        &admin_id.to_string(),
+        &input,
+        SERVER_KEY,
+    )
+    .await
+    .expect("create token");
+
+    let app = build_api_router(pool);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/services")
+                .header("authorization", format!("Bearer {}", secret.secret))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "in-scope token should return 200"
+    );
+}
+
+/// T044: Out-of-scope token → 403 Forbidden.
+#[tokio::test]
+async fn http_bearer_out_of_scope_returns_403() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+    let admin_id = setup_admin(&pool).await;
+    let input = ApiTokenInput {
+        name: "http-out-of-scope".to_string(),
+        scopes: vec!["services:read".to_string()],
+        expires_at: None,
+    };
+    let secret = extended_auth_queries::create_api_token_query(
+        &pool,
+        &admin_id.to_string(),
+        &input,
+        SERVER_KEY,
+    )
+    .await
+    .expect("create token");
+
+    let app = build_api_router(pool);
+    // POST /api/v1/services requires services:write scope; token only has services:read
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/services")
+                .header("authorization", format!("Bearer {}", secret.secret))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"name": "test", "url": "https://test.example.com"})
+                        .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::FORBIDDEN,
+        "out-of-scope token should return 403"
+    );
+}
+
+/// T044: Revoked token → 401 Unauthorized.
+#[tokio::test]
+async fn http_bearer_revoked_returns_401() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+    let admin_id = setup_admin(&pool).await;
+    let input = ApiTokenInput {
+        name: "http-revoked".to_string(),
+        scopes: vec!["services:read".to_string()],
+        expires_at: None,
+    };
+    let secret = extended_auth_queries::create_api_token_query(
+        &pool,
+        &admin_id.to_string(),
+        &input,
+        SERVER_KEY,
+    )
+    .await
+    .expect("create token");
+
+    extended_auth_queries::revoke_api_token_query(&pool, secret.id, &admin_id.to_string())
+        .await
+        .expect("revoke");
+
+    let app = build_api_router(pool);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/services")
+                .header("authorization", format!("Bearer {}", secret.secret))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "revoked token should return 401"
+    );
+}
+
+/// T044: Missing token → 401 Unauthorized.
+#[tokio::test]
+async fn http_bearer_missing_returns_401() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+    let _ = setup_admin(&pool).await;
+
+    let app = build_api_router(pool);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/services")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "missing token should return 401"
+    );
+}
