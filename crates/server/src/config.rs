@@ -180,7 +180,7 @@ fn default_hsts_max_age() -> u64 {
     31536000
 }
 fn default_rate_limit_enabled() -> bool {
-    true
+    false
 }
 
 /// Load configuration from TOML file + environment variables.
