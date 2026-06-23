@@ -167,3 +167,137 @@ fn oidc_list_external_identities() {
         assert_eq!(identities.len(), 2);
     });
 }
+
+// --- T042: HTTP-layer OIDC route handler tests ---
+
+/// T042: OIDC login route returns 503 when OIDC is disabled.
+#[tokio::test]
+async fn http_oidc_login_disabled_returns_503() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+    let _ = setup_admin(&pool).await;
+
+    let state = common::build_test_state(pool, "test-key");
+    let app = server::auth::oidc::oidc_routes().with_state(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/oidc/login")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "OIDC login should return 503 when OIDC is not configured"
+    );
+}
+
+/// T042: OIDC callback route returns 503 when OIDC is disabled.
+#[tokio::test]
+async fn http_oidc_callback_disabled_returns_503() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+
+    let state = common::build_test_state(pool, "test-key");
+    let app = server::auth::oidc::oidc_routes().with_state(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/oidc/callback?code=test&state=test")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "OIDC callback should return 503 when OIDC is not configured"
+    );
+}
+
+/// T042: OIDC callback with invalid state returns 400 when OIDC is enabled
+/// but no matching PKCE state exists (simulates stale/invalid callback).
+#[tokio::test]
+async fn http_oidc_callback_invalid_state_returns_400() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+
+    // Build state with OIDC enabled (but no real IdP — callback checks state store first)
+    let mut config = server::config::Config::default();
+    config.oidc.enabled = true;
+    config.oidc.issuer_url = "https://stub-idp.example.com".to_string();
+    config.oidc.client_id = "test-client".to_string();
+    config.oidc.client_secret = "test-secret".to_string();
+    config.oidc.redirect_url = "http://localhost:5005/auth/oidc/callback".to_string();
+
+    let state = common::build_test_state_with_config(pool, config);
+    let app = server::auth::oidc::oidc_routes().with_state(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/oidc/callback?code=test&state=invalid-state-no-match")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    // Callback should return 400 for invalid/expired state (before attempting IdP discovery)
+    assert_eq!(
+        response.status(),
+        StatusCode::BAD_REQUEST,
+        "OIDC callback with invalid state should return 400"
+    );
+}
+
+/// T042: OIDC login route with empty issuer returns 503 (misconfigured).
+#[tokio::test]
+async fn http_oidc_login_empty_issuer_returns_503() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    let pool = test_pool().await;
+
+    // OIDC enabled but issuer_url is empty — should return 503
+    let mut config = server::config::Config::default();
+    config.oidc.enabled = true;
+    config.oidc.issuer_url = String::new();
+
+    let state = common::build_test_state_with_config(pool, config);
+    let app = server::auth::oidc::oidc_routes().with_state(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/oidc/login")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "OIDC login with empty issuer should return 503"
+    );
+}
