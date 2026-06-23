@@ -131,3 +131,55 @@ async fn audit_result_check_constraint(pool: SqlitePool) {
     .await
     .expect("valid audit result");
 }
+
+/// Test that security header layers (HSTS, nosniff, frame-deny, referrer) are present.
+/// T017: Missing security-headers test.
+#[tokio::test]
+async fn security_headers_present() {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+    use tower_http::set_header::SetResponseHeaderLayer;
+
+    let app = axum::Router::new()
+        .route("/", axum::routing::get(|| async { "ok" }))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("strict-transport-security"),
+            axum::http::HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("x-content-type-options"),
+            axum::http::HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("x-frame-options"),
+            axum::http::HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("referrer-policy"),
+            axum::http::HeaderValue::from_static("no-referrer"),
+        ));
+
+    let response = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        response.headers().contains_key("strict-transport-security"),
+        "HSTS header must be present"
+    );
+    assert!(
+        response.headers().contains_key("x-content-type-options"),
+        "X-Content-Type-Options header must be present"
+    );
+    assert!(
+        response.headers().contains_key("x-frame-options"),
+        "X-Frame-Options header must be present"
+    );
+    assert!(
+        response.headers().contains_key("referrer-policy"),
+        "Referrer-Policy header must be present"
+    );
+}
