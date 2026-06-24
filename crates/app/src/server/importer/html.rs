@@ -5,7 +5,7 @@
 
 #![cfg(feature = "ssr")]
 
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 
 use crate::domain::{ParsedBookmark, ParsedCategory, ParsedData, Visibility};
 use crate::error::AppError;
@@ -18,8 +18,6 @@ pub fn parse_html(data: &[u8]) -> Result<ParsedData, AppError> {
 
     let document = Html::parse_document(html_str);
 
-    let h3_selector = Selector::parse("h3").map_err(|_| AppError::Internal)?;
-    let a_selector = Selector::parse("a[href]").map_err(|_| AppError::Internal)?;
     let dl_selector = Selector::parse("dl").map_err(|_| AppError::Internal)?;
 
     // Check derivation depth: count nested dl elements
@@ -30,56 +28,19 @@ pub fn parse_html(data: &[u8]) -> Result<ParsedData, AppError> {
         ));
     }
 
-    // Extract categories from h3 elements (folder names)
     let mut categories: Vec<ParsedCategory> = Vec::new();
-    let h3_names: Vec<String> = document
-        .select(&h3_selector)
-        .map(|e| e.text().collect::<String>().trim().to_string())
-        .collect();
-
-    for name in &h3_names {
-        if !name.is_empty() {
-            categories.push(ParsedCategory {
-                name: name.clone(),
-                icon: None,
-                visibility: Visibility::Public,
-            });
-        }
-    }
-
-    // Extract bookmarks from a elements
-    // For category mapping, we use a simple heuristic: find the nearest preceding h3
-    // in document order. This is approximate but works for standard Netscape format.
     let mut bookmarks: Vec<ParsedBookmark> = Vec::new();
+    let mut current_category: Option<String> = None;
 
-    // Iterate all h3 and a elements in document order by collecting their text/attrs
-    // Since scraper doesn't expose document-order iteration easily, we use a simpler approach:
-    // For each a element, check if any h3 text appears before it in the raw HTML string.
-    // This is a pragmatic heuristic that works for standard Netscape bookmark format.
-    for a_elem in document.select(&a_selector) {
-        let href = a_elem.value().attr("href").unwrap_or("").to_string();
-        let name = a_elem.text().collect::<String>().trim().to_string();
-
-        if name.is_empty() || href.is_empty() {
-            continue;
-        }
-
-        // Find category by checking which h3 names appear in the document
-        // For simplicity, use the first category name as a fallback.
-        // A more precise mapping would require DOM tree walking which scraper
-        // makes difficult without NodeId access. For the Netscape format,
-        // the structure is: <DL><DT><H3>Folder</H3><DL>...links...</DL></DL>
-        // We match by checking if the link's text content appears after a folder name.
-        let category_name = h3_names.first().cloned();
-
-        bookmarks.push(ParsedBookmark {
-            name,
-            url: href,
-            icon: None,
-            category_name,
-            visibility: Visibility::Public,
-        });
-    }
+    // Walk the DOM tree in document order to map bookmarks to their categories.
+    // When an <h3> is encountered, it starts a new category. Subsequent <a> elements
+    // belong to that category until the next <h3> is found.
+    walk_element(
+        document.root_element(),
+        &mut current_category,
+        &mut categories,
+        &mut bookmarks,
+    );
 
     Ok(ParsedData {
         categories,
@@ -88,4 +49,50 @@ pub fn parse_html(data: &[u8]) -> Result<ParsedData, AppError> {
         themes: Vec::new(),
         settings: None,
     })
+}
+
+/// Recursively walk the DOM tree in document order.
+/// Updates `current_category` when an `<h3>` is found, and assigns bookmarks
+/// to `current_category` when an `<a href>` is found.
+fn walk_element(
+    element: ElementRef,
+    current_category: &mut Option<String>,
+    categories: &mut Vec<ParsedCategory>,
+    bookmarks: &mut Vec<ParsedBookmark>,
+) {
+    for child_node in element.children() {
+        let Some(child_el) = ElementRef::wrap(child_node) else {
+            continue;
+        };
+
+        match child_el.value().name() {
+            "h3" => {
+                let name = child_el.text().collect::<String>().trim().to_string();
+                if !name.is_empty() {
+                    categories.push(ParsedCategory {
+                        name: name.clone(),
+                        icon: None,
+                        visibility: Visibility::Public,
+                    });
+                    *current_category = Some(name);
+                }
+            }
+            "a" => {
+                let href = child_el.value().attr("href").unwrap_or("").to_string();
+                let name = child_el.text().collect::<String>().trim().to_string();
+                if !name.is_empty() && !href.is_empty() {
+                    bookmarks.push(ParsedBookmark {
+                        name,
+                        url: href,
+                        icon: None,
+                        category_name: current_category.clone(),
+                        visibility: Visibility::Public,
+                    });
+                }
+            }
+            _ => {
+                walk_element(child_el, current_category, categories, bookmarks);
+            }
+        }
+    }
 }
