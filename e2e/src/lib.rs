@@ -16,29 +16,18 @@
 //! cargo run -p server
 //!
 //! # Terminal 3: Run E2E tests
-//! cargo test -p e2e
+//! cargo test -p e2e -- --ignored
 //! ```
 //!
 //! ## Test Scenarios
 //!
 //! 1. **First-run setup** — create admin account at `/setup`
 //! 2. **Login** — authenticate at `/login`, verify dashboard
-//! 3. **Create content** — category, service, bookmark via editor forms
+//! 3. **Create content** — category, service, bookmark via editor routes
 //! 4. **Search** — fuzzy match service name in search island
-//! 5. **Edit service** — update service name (requires edit UI)
-//! 6. **Delete bookmark** — remove bookmark via editor delete button
+//! 5. **Edit service** — update service name on `/edit/service`
+//! 6. **Delete bookmark** — remove bookmark via `/edit/bookmark`
 //! 7. **Logout** — sign out from account page
-//!
-//! ## Notes
-//!
-//! Tests 3–6 target editor and search components (CategoryEditor,
-//! ServiceEditor, BookmarkEditor, SearchIsland) that exist in the codebase
-//! but are not yet wired to any route. These tests use the actual CSS
-//! selectors from the component source and will pass once the components
-//! are rendered on a page.
-//!
-//! Test 5 (edit service name) requires an inline edit form that does not
-//! yet exist in ServiceEditor. The test documents the expected UI.
 
 use fantoccini::{Client, ClientBuilder, Locator};
 use std::time::Duration;
@@ -133,6 +122,7 @@ async fn login(client: &Client) {
 /// `div.setup-page > form` with `input[type='text']`, `input[type='password']`,
 /// `input[type='email']`, and a submit button labeled "Create Admin Account".
 #[tokio::test]
+#[ignore = "requires WebDriver server"]
 async fn t01_first_run_setup() {
     let client = connect().await;
     goto(&client, "/setup").await;
@@ -178,6 +168,7 @@ async fn t01_first_run_setup() {
 /// `div.login-page > form` with `input[type='text']`, `input[type='password']`,
 /// and a submit button labeled "Log In".
 #[tokio::test]
+#[ignore = "requires WebDriver server"]
 async fn t02_login() {
     let client = connect().await;
     goto(&client, "/login").await;
@@ -216,25 +207,25 @@ async fn t02_login() {
 
 /// T082-3: Create a category, add a service, add a bookmark.
 ///
-/// Logs in, then uses the editor forms to create content. Uses selectors
-/// from CategoryEditor, ServiceEditor, and BookmarkEditor:
+/// Logs in, then navigates to the editor routes to create content:
+/// - `/edit/category` for CategoryEditor
+/// - `/edit/service` for ServiceEditor
+/// - `/edit/bookmark` for BookmarkEditor
+///
+/// Uses selectors from the editor components:
 /// - `div.category-editor form input[placeholder='Category name']`
 /// - `div.service-editor form input[placeholder='Service name']`
 /// - `div.service-editor form input[placeholder='https://example.com']`
 /// - `div.bookmark-editor form input[placeholder='Bookmark name']`
 /// - `div.bookmark-editor form input[placeholder='https://example.com']`
-///
-/// NOTE: Editor components are not yet wired to any route. This test
-/// will fail until they are rendered on a page (e.g., dashboard or /edit).
 #[tokio::test]
+#[ignore = "requires WebDriver server"]
 async fn t03_create_category_service_bookmark() {
     let client = connect().await;
     login(&client).await;
 
-    // Navigate to where editors are expected to be rendered
-    goto(&client, "/").await;
-
-    // --- Create category ---
+    // --- Create category via /edit/category ---
+    goto(&client, "/edit/category").await;
     wait_for(&client, &Locator::Css(".category-editor"), 10).await;
 
     let cat_input =
@@ -258,7 +249,8 @@ async fn t03_create_category_service_bookmark() {
     )
     .await;
 
-    // --- Create service ---
+    // --- Create service via /edit/service ---
+    goto(&client, "/edit/service").await;
     wait_for(&client, &Locator::Css(".service-editor"), 10).await;
 
     let svc_name =
@@ -286,7 +278,8 @@ async fn t03_create_category_service_bookmark() {
     )
     .await;
 
-    // --- Create bookmark ---
+    // --- Create bookmark via /edit/bookmark ---
+    goto(&client, "/edit/bookmark").await;
     wait_for(&client, &Locator::Css(".bookmark-editor"), 10).await;
 
     let bm_name =
@@ -314,6 +307,10 @@ async fn t03_create_category_service_bookmark() {
     )
     .await;
 
+    // --- Verify content appears on dashboard ---
+    goto(&client, "/").await;
+    wait_for(&client, &Locator::Css("h1"), 10).await;
+
     let _ = client.close().await;
 }
 
@@ -323,13 +320,11 @@ async fn t03_create_category_service_bookmark() {
 
 /// T082-4: Search for the service (fuzzy match).
 ///
-/// Types a fuzzy query in the search input and verifies the service appears
-/// in results. Uses selectors from SearchIsland:
+/// Types a fuzzy query in the search input on the dashboard and verifies
+/// the service appears in results. Uses selectors from SearchIsland:
 /// `div.search-island > input.search-input` and `ul.search-results > li.search-result`.
-///
-/// NOTE: SearchIsland is not yet wired to any route. This test will fail
-/// until it is rendered on a page.
 #[tokio::test]
+#[ignore = "requires WebDriver server"]
 async fn t04_search_service_fuzzy() {
     let client = connect().await;
     login(&client).await;
@@ -374,20 +369,14 @@ async fn t04_search_service_fuzzy() {
 
 /// T082-5: Edit the service (update name).
 ///
-/// NOTE: The ServiceEditor component currently only supports create, pin
-/// toggle, and delete — there is no inline edit form for updating a
-/// service's name. This test documents the expected UI (an "Edit" button
-/// that opens an edit form with a name input and save button) and will
-/// pass once inline editing is implemented.
-///
-/// The test gracefully handles the missing edit button by printing a note
-/// and passing, so the test suite can run without the feature being
-/// implemented yet.
+/// Navigates to `/edit/service`, finds the service in the list, clicks
+/// the "Edit" button, updates the name, and verifies the change.
 #[tokio::test]
+#[ignore = "requires WebDriver server"]
 async fn t05_edit_service_name() {
     let client = connect().await;
     login(&client).await;
-    goto(&client, "/").await;
+    goto(&client, "/edit/service").await;
 
     wait_for(&client, &Locator::Css(".service-editor"), 10).await;
 
@@ -399,48 +388,42 @@ async fn t05_edit_service_name() {
         .await
         .expect("service item not found");
 
-    // Look for an "Edit" button (does not exist yet in current UI)
+    // Click the "Edit" button on the service item
     let edit_btn = service_item
         .find(Locator::XPath(
             ".//button[contains(text(), 'Edit')]".to_string(),
         ))
-        .await;
+        .await
+        .expect("edit button not found");
 
-    match edit_btn {
-        Ok(btn) => {
-            btn.click().await.expect("failed to click edit");
+    edit_btn.click().await.expect("failed to click edit");
 
-            // Update the name in the edit form
-            let name_input =
-                find_css(&client, ".service-editor form input[placeholder='Service name']").await;
-            name_input
-                .send_keys("E2E Renamed Service")
-                .await
-                .expect("failed to type new name");
+    // Update the name in the edit form
+    let name_input =
+        find_css(&client, ".service-editor form input[placeholder='Service name']").await;
+    // Clear existing text and type new name
+    name_input
+        .send_keys(fantoccini::Key::Control + "a")
+        .await
+        .expect("failed to select all");
+    name_input
+        .send_keys("E2E Renamed Service")
+        .await
+        .expect("failed to type new name");
 
-            let save_btn =
-                find_css(&client, ".service-editor form button[type='submit']").await;
-            save_btn.click().await.expect("failed to click save");
+    let save_btn =
+        find_css(&client, ".service-editor form button[type='submit']").await;
+    save_btn.click().await.expect("failed to click save");
 
-            // Verify updated name appears
-            wait_for(
-                &client,
-                &Locator::XPath(
-                    "//*[contains(text(), 'E2E Renamed Service')]".to_string(),
-                ),
-                10,
-            )
-            .await;
-        }
-        Err(_) => {
-            // Edit button not found — feature not yet implemented.
-            // Test passes with a note that this feature needs implementation.
-            eprintln!(
-                "NOTE: Service name editing is not yet implemented in the UI. \
-                 Skipping edit verification."
-            );
-        }
-    }
+    // Verify updated name appears
+    wait_for(
+        &client,
+        &Locator::XPath(
+            "//*[contains(text(), 'E2E Renamed Service')]".to_string(),
+        ),
+        10,
+    )
+    .await;
 
     let _ = client.close().await;
 }
@@ -451,21 +434,19 @@ async fn t05_edit_service_name() {
 
 /// T082-6: Delete the bookmark.
 ///
-/// Clicks the "Delete" button on a bookmark in the BookmarkEditor list and
-/// verifies the bookmark is removed. Uses selectors from BookmarkEditor:
+/// Navigates to `/edit/bookmark`, clicks the "Delete" button on a bookmark,
+/// and verifies the bookmark is removed. Uses selectors from BookmarkEditor:
 /// `div.bookmark-editor ul.reorder-list li` with a "Delete" button.
 ///
 /// The `confirm_delete()` function uses `window.confirm()` which shows a
 /// browser dialog. Before clicking delete, we override `window.confirm`
 /// via JavaScript to auto-accept, avoiding the need for alert handling.
-///
-/// NOTE: BookmarkEditor is not yet wired to any route. This test will fail
-/// until it is rendered on a page.
 #[tokio::test]
+#[ignore = "requires WebDriver server"]
 async fn t06_delete_bookmark() {
     let client = connect().await;
     login(&client).await;
-    goto(&client, "/").await;
+    goto(&client, "/edit/bookmark").await;
 
     wait_for(&client, &Locator::Css(".bookmark-editor"), 10).await;
 
@@ -524,6 +505,7 @@ async fn t06_delete_bookmark() {
 /// `/login`. Uses selectors from AccountPage: `div.account-page` with
 /// a button labeled "Sign Out".
 #[tokio::test]
+#[ignore = "requires WebDriver server"]
 async fn t07_logout() {
     let client = connect().await;
     login(&client).await;
