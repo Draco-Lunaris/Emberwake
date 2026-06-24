@@ -31,7 +31,7 @@ async fn webauthn_create(challenge: serde_json::Value) -> Result<RegisterRespons
 
     let credentials = window.navigator().credentials();
     let result =
-        JsFuture::from(credentials.create_with_credential_creation_options(&create_options))
+        JsFuture::from({ let create_fn = js_sys::Reflect::get(&credentials, &"create".into()).unwrap(); let create_fn: js_sys::Function = create_fn.unchecked_into(); create_fn.call1(&credentials, &create_options).unwrap() })
             .await
             .map_err(|e| format!("credentials.create failed: {e:?}"))?;
 
