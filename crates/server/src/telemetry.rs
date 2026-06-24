@@ -25,13 +25,16 @@ pub fn init_tracing(log_level: &str) {
         .init();
 }
 
-/// Initialize OTLP exporter if endpoint is configured.
-/// Optional feature — skipped if `otlp_endpoint` is None.
+/// Initialize OTLP exporter if enabled.
+///
+/// OTLP trace export is a documented v1 limitation. When `otlp_enabled` is true
+/// the configured endpoint is logged at info level. Trace export itself is not
+/// yet wired — the `opentelemetry-otlp` crate is not a dependency. This function
+/// is a clean no-op that avoids misleading warnings.
 pub fn init_otlp(endpoint: &str) {
-    tracing::info!("OTLP endpoint configured: {endpoint}");
-    // OTLP exporter requires the `opentelemetry-otlp` crate (not currently a dependency).
-    // This logs the intent; full OTLP wiring requires adding the crate.
-    tracing::warn!("OTLP exporter not yet implemented — endpoint logged but traces not exported");
+    tracing::info!(
+        "OTLP endpoint configured: {endpoint} (trace export not yet wired — v1 limitation)"
+    );
 }
 
 /// Register a request counter metric with the Prometheus default registry.

@@ -44,7 +44,9 @@ async fn main() {
 
     telemetry::init_tracing(&config.telemetry.log_level);
     telemetry::register_request_counter();
-    if let Some(ref endpoint) = config.telemetry.otlp_endpoint {
+    if config.telemetry.otlp_enabled
+        && let Some(ref endpoint) = config.telemetry.otlp_endpoint
+    {
         telemetry::init_otlp(endpoint);
     }
     tracing::info!("Starting Emberwake server");
