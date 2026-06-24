@@ -160,6 +160,14 @@ fn HomePage() -> impl IntoView {
         || (),
         |_| async { server::weather_read::get_weather().await.unwrap_or(None) },
     );
+    let search_providers = Resource::new(
+        || (),
+        |_| async {
+            server::content_read::get_search_providers()
+                .await
+                .unwrap_or_default()
+        },
+    );
 
     view! {
         <Suspense fallback=|| view! { <p>"Loading..."</p> }>
@@ -186,7 +194,8 @@ fn HomePage() -> impl IntoView {
                                                     items.push((bm.name.clone(), bm.url.clone()));
                                                 }
                                             }
-                                            view! { <SearchIsland items providers=vec![] /> }
+                                            let providers = search_providers.get().unwrap_or_default().providers;
+                                            view! { <SearchIsland items providers /> }
                                         })
                                 }}
                             </Suspense>
