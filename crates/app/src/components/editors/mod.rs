@@ -207,6 +207,8 @@ pub fn ServiceEditor(
     let (name, set_name) = signal(String::new());
     let (url, set_url) = signal(String::new());
     let (visibility, set_visibility) = signal(Visibility::Public);
+    let (icon, set_icon) = signal(String::new());
+    let (description, set_description) = signal(String::new());
     let (error, set_error) = signal(Option::<String>::None);
     let (dragged_id, set_dragged_id) = signal(Option::<Uuid>::None);
     let (pending_delete, set_pending_delete) = signal(Option::<Uuid>::None);
@@ -254,6 +256,8 @@ pub fn ServiceEditor(
             set_services.update(|svcs| svcs.push(svc.clone()));
             set_name.set(String::new());
             set_url.set(String::new());
+            set_icon.set(String::new());
+            set_description.set(String::new());
             set_error.set(None);
         }
         if let Some(Err(e)) = create_action.value().get() {
@@ -271,6 +275,8 @@ pub fn ServiceEditor(
             set_editing_id.set(None);
             set_name.set(String::new());
             set_url.set(String::new());
+            set_icon.set(String::new());
+            set_description.set(String::new());
             set_visibility.set(Visibility::Public);
             set_error.set(None);
         }
@@ -307,8 +313,8 @@ pub fn ServiceEditor(
                         category_id: None,
                         name: Some(name.get()),
                         url: Some(url.get()),
-                        icon: None,
-                        description: None,
+                        icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
+                        description: Some(if description.get().is_empty() { None } else { Some(description.get()) }),
                         is_pinned: None,
                         visibility: Some(visibility.get()),
                         monitor_enabled: None,
@@ -322,8 +328,8 @@ pub fn ServiceEditor(
                         category_id: None,
                         name: name.get(),
                         url: url.get(),
-                        icon: None,
-                        description: None,
+                        icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
+                        description: if description.get().is_empty() { None } else { Some(description.get()) },
                         is_pinned: false,
                         visibility: visibility.get(),
                         monitor_enabled: false,
@@ -346,6 +352,17 @@ pub fn ServiceEditor(
                     prop:value=url
                     on:input=move |ev| set_url.set(event_target_value(&ev))
                 />
+                <input
+                    type="text"
+                    placeholder="Icon URL (https://example.com/icon.png)"
+                    prop:value=icon
+                    on:input=move |ev| set_icon.set(event_target_value(&ev))
+                />
+                <textarea
+                    placeholder="Service description"
+                    prop:value=description
+                    on:input=move |ev| set_description.set(event_target_value(&ev))
+                ></textarea>
                 <select on:change=move |ev| set_visibility.set(parse_visibility(&event_target_value(&ev)))>
                     <option value="public" selected=move || visibility.get() == Visibility::Public>"Public"</option>
                     <option value="private" selected=move || visibility.get() == Visibility::Private>"Private"</option>
@@ -357,6 +374,8 @@ pub fn ServiceEditor(
                         set_editing_id.set(None);
                         set_name.set(String::new());
                         set_url.set(String::new());
+                        set_icon.set(String::new());
+                        set_description.set(String::new());
                         set_visibility.set(Visibility::Public);
                         set_error.set(None);
                     }>"Cancel"</button>
@@ -372,6 +391,8 @@ pub fn ServiceEditor(
                         let is_pinned = svc.is_pinned;
                         let edit_name = svc_name.clone();
                         let edit_url = svc_url.clone();
+                        let edit_icon = svc.icon.clone();
+                        let edit_description = svc.description.clone();
                         view! {
                             <li
                                 draggable="true"
@@ -411,6 +432,8 @@ pub fn ServiceEditor(
                                     on:click=move |_| {
                                         set_name.set(edit_name.clone());
                                         set_url.set(edit_url.clone());
+                                        set_icon.set(edit_icon.clone().unwrap_or_default());
+                                        set_description.set(edit_description.clone().unwrap_or_default());
                                         set_visibility.set(svc_visibility);
                                         set_editing_id.set(Some(svc_id));
                                     }
@@ -449,6 +472,7 @@ pub fn BookmarkEditor(
     let (name, set_name) = signal(String::new());
     let (url, set_url) = signal(String::new());
     let (visibility, set_visibility) = signal(Visibility::Public);
+    let (icon, set_icon) = signal(String::new());
     let (error, set_error) = signal(Option::<String>::None);
     let (dragged_id, set_dragged_id) = signal(Option::<Uuid>::None);
     let (pending_delete, set_pending_delete) = signal(Option::<Uuid>::None);
@@ -487,6 +511,7 @@ pub fn BookmarkEditor(
             set_bookmarks.update(|bms| bms.push(bm.clone()));
             set_name.set(String::new());
             set_url.set(String::new());
+            set_icon.set(String::new());
             set_error.set(None);
         }
         if let Some(Err(e)) = create_action.value().get() {
@@ -504,6 +529,7 @@ pub fn BookmarkEditor(
             set_editing_id.set(None);
             set_name.set(String::new());
             set_url.set(String::new());
+            set_icon.set(String::new());
             set_visibility.set(Visibility::Public);
             set_error.set(None);
         }
@@ -534,7 +560,7 @@ pub fn BookmarkEditor(
                         category_id: None,
                         name: Some(name.get()),
                         url: Some(url.get()),
-                        icon: None,
+                        icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
                         visibility: Some(visibility.get()),
                     };
                     update_action.dispatch((id, patch));
@@ -543,7 +569,7 @@ pub fn BookmarkEditor(
                         category_id,
                         name: name.get(),
                         url: url.get(),
-                        icon: None,
+                        icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
                         visibility: visibility.get(),
                     };
                     create_action.dispatch(input);
@@ -561,6 +587,12 @@ pub fn BookmarkEditor(
                     prop:value=url
                     on:input=move |ev| set_url.set(event_target_value(&ev))
                 />
+                <input
+                    type="text"
+                    placeholder="Icon URL (https://example.com/icon.png)"
+                    prop:value=icon
+                    on:input=move |ev| set_icon.set(event_target_value(&ev))
+                />
                 <select on:change=move |ev| set_visibility.set(parse_visibility(&event_target_value(&ev)))>
                     <option value="public" selected=move || visibility.get() == Visibility::Public>"Public"</option>
                     <option value="private" selected=move || visibility.get() == Visibility::Private>"Private"</option>
@@ -572,6 +604,7 @@ pub fn BookmarkEditor(
                         set_editing_id.set(None);
                         set_name.set(String::new());
                         set_url.set(String::new());
+                        set_icon.set(String::new());
                         set_visibility.set(Visibility::Public);
                         set_error.set(None);
                     }>"Cancel"</button>
@@ -586,6 +619,7 @@ pub fn BookmarkEditor(
                         let bm_visibility = bm.visibility;
                         let edit_name = bm_name.clone();
                         let edit_url = bm_url.clone();
+                        let edit_icon = bm.icon.clone();
                         view! {
                             <li
                                 draggable="true"
@@ -613,6 +647,7 @@ pub fn BookmarkEditor(
                                     on:click=move |_| {
                                         set_name.set(edit_name.clone());
                                         set_url.set(edit_url.clone());
+                                        set_icon.set(edit_icon.clone().unwrap_or_default());
                                         set_visibility.set(bm_visibility);
                                         set_editing_id.set(Some(bm_id));
                                     }
