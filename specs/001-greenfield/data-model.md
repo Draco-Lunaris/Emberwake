@@ -89,8 +89,9 @@ Scoped automation credential for the public REST surface. Only a hash is stored.
 | created_at  | TEXT     |                                                     |
 | updated_at  | TEXT     |                                                     |
 
-Relationship: **Category 1—* Service** and **Category 1—* Bookmark** (both FKs nullable for
-uncategorized items; ON DELETE: items set null or cascade per a chosen, tested policy).
+Relationship: **Category 1—* Application**, **Category 1—* Service**, and
+**Category 1—* Bookmark** (Service/Application FKs nullable for uncategorized items;
+Bookmark FK is required; ON DELETE: items set null or cascade per a chosen, tested policy).
 
 ### Service
 
@@ -114,12 +115,30 @@ A launchable and optionally monitored tile.
 | created_at     | TEXT      |                                                  |
 | updated_at     | TEXT      |                                                  |
 
+### Application
+
+A launchable tile (no monitoring).
+
+| Field       | Type      | Notes                                            |
+|-------------|-----------|--------------------------------------------------|
+| id          | TEXT PK   |                                                  |
+| category_id | TEXT FK   | → Category.id; defaults to 'Uncategorized'       |
+| name        | TEXT      | required                                          |
+| url         | TEXT      | required; validated                              |
+| icon        | TEXT NULL | icon ref or uploaded asset                       |
+| description | TEXT NULL |                                                  |
+| is_pinned   | INTEGER   | bool; drives dashboard inclusion                 |
+| order_index | INTEGER   |                                                  |
+| visibility  | TEXT      | `public` \| `private` \| `restricted`            |
+| created_at  | TEXT      |                                                  |
+| updated_at  | TEXT      |                                                  |
+
 ### Bookmark
 
 | Field       | Type     | Notes                                               |
 |-------------|----------|-----------------------------------------------------|
 | id          | TEXT PK  |                                                     |
-| category_id | TEXT FK NULL| → Category.id                                     |
+| category_id | TEXT FK   | → Category.id; REQUIRED                         |
 | name        | TEXT     | required                                            |
 | url         | TEXT     | required; validated                                 |
 | icon        | TEXT NULL|                                                     |
@@ -136,7 +155,7 @@ Typed key/value store; values are JSON, read through a typed registry (never par
 
 | Field      | Type     | Notes                                               |
 |------------|----------|-----------------------------------------------------|
-| key        | TEXT PK  | e.g. `search.providers`, `search.default`,`integrations.docker`, `integrations.k8s`, `weather.*`,`theme.active`, `auth.oidc`, `auth.passkeys` |
+| key        | TEXT PK  | e.g. `search.providers`, `search.default`,`integrations.docker`, `integrations.k8s`, `weather.*`,`theme.active`, `auth.oidc`, `auth.passkeys`, `dashboard.services.enabled`, `dashboard.services.columns`, `dashboard.applications.enabled`, `dashboard.applications.columns`, `dashboard.bookmarks.enabled`, `dashboard.bookmarks.columns` |
 | value      | TEXT     | JSON; secret-bearing keys flagged in the registry   |
 | updated_at | TEXT     |                                                     |
 
@@ -220,8 +239,9 @@ User 1─* PasskeyCredential
 User 1─* ApiToken
 User 1─* AuditEvent (actor)
 
+Category 1─* Application  (Application.category_id, nullable)
 Category 1─* Service        (Service.category_id, nullable)
-Category 1─* Bookmark       (Bookmark.category_id, nullable)
+Category 1─* Bookmark       (Bookmark.category_id, REQUIRED)
 Service  1─1 StatusReading  (current)
 Service  1─* StatusHistory  (bounded uptime log)
 

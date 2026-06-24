@@ -13,7 +13,7 @@ and public-API contracts, task breakdown, and developer quickstart.
 - `research.md` — Phase 0 decisions with rejected alternatives and resolved items
 - `data-model.md` — Phase 1 schema (all entities, relationships, migration notes)
 - `security.md` — threat model (STRIDE, controls, verification hooks)
-- `tasks.md` — Phase 2 task breakdown (84+ tasks across 12 phases, test-first)
+- `tasks.md` — Phase 2 task breakdown (93+ tasks across 13 phases, test-first)
 - `quickstart.md` — developer and operator workflow
 - `contracts/` — typed boundary contracts (see child DOX)
 

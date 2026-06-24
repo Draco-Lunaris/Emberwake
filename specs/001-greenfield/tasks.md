@@ -345,6 +345,20 @@ duplicate detection, preview; parsers fuzzed.
 
 ---
 
+## Phase 13: Three-Section Dashboard Redesign
+
+- [ ] T085 [Phase 13] Add Application entity: migration, domain types, repository methods, server functions
+- [ ] T086 [Phase 13] Add per-section column settings to Setting keys (services/applications/bookmarks columns + enabled)
+- [ ] T087 [Phase 13] Update Dashboard component to render three sections (Services → Applications → Bookmarks)
+- [ ] T088 [Phase 13] Add ApplicationEditor component (create/edit/delete/reorder/pin)
+- [ ] T089 [Phase 13] Update BookmarkEditor to require category selection
+- [ ] T090 [Phase 13] Add section enable/disable toggle to Settings page
+- [ ] T091 [Phase 13] Add per-section column count selector to Settings page
+- [ ] T092 [Phase 13] Update CSS for three-section layout with per-section grid columns
+- [ ] T093 [Phase 13] Browser-verify: BV-001 through BV-015 all pass against deployed app
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies

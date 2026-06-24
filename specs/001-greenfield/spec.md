@@ -28,10 +28,11 @@ discovery, and data portability without breaking earlier slices.
 
 ### User Story 1 - A fast, searchable dashboard (Priority: P1) 🎯 MVP
 
-A self-hoster opens the dashboard and sees their pinned services and bookmark groups rendered
-as real HTML on first paint (SSR), then the interactive parts (search, editors) hydrate. They
-type into a search box and results filter instantly with fuzzy matching; a prefix routes the
-query to a configured web search provider.
+A self-hoster opens the dashboard and sees three sections — Services, Applications, and
+Bookmarks — rendered as real HTML on first paint (SSR), then the interactive parts (search,
+editors) hydrate. Each section can be enabled/disabled and has its own configurable column
+count. They type into a search box and results filter instantly with fuzzy matching; a prefix
+routes the query to a configured web search provider.
 
 **Why this priority**: A startpage that is not instant and searchable has no reason to exist;
 this slice proves the core rendering pipeline (SSR + island hydration) and the performance
@@ -55,7 +56,7 @@ client-side, and confirm a prefixed query resolves to the provider URL.
 ### User Story 2 - Manage content with built-in editors (Priority: P1)
 
 A signed-in operator creates, edits, reorders (drag-and-drop), pins, and deletes services,
-bookmarks, and categories through in-app editors. Changes apply optimistically and persist.
+applications, bookmarks, and categories through in-app editors. Changes apply optimistically and persist.
 
 **Why this priority**: "No file editing necessary" is the product's core promise; this is the
 write half of the dashboard and exercises the typed server-function boundary end-to-end.
@@ -269,8 +270,9 @@ handling; assert oversized/malformed input is rejected before any write.
 
 ### Functional Requirements
 
-- **FR-001**: System MUST server-render the dashboard (pinned services, bookmark groups,
-  search box) so first paint contains content, then hydrate only interactive islands.
+- **FR-001**: System MUST server-render the dashboard with three sections (Services,
+  Applications, Bookmarks) so first paint contains content, then hydrate only interactive
+  islands. Each section can be enabled/disabled. Each section has a configurable column count.
 - **FR-002**: System MUST provide fuzzy client-side search across services/bookmarks plus
   prefix routing to configurable web search providers.
 - **FR-003**: System MUST expose typed server functions for full CRUD + reorder + pin of
@@ -310,6 +312,9 @@ handling; assert oversized/malformed input is rejected before any write.
 - **FR-020**: System MUST perform scheduled WAL checkpoints and SHOULD perform automated
   SQLite `.backup` to the data volume with configurable retention limits (max count, max total
   size) to preserve disk space.
+- **FR-021**: System MUST support an Application entity (launchable tiles without monitoring)
+  distinct from Service (monitored endpoints). Both have independent categories with a default
+  'Uncategorized' category.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -321,10 +326,13 @@ handling; assert oversized/malformed input is rejected before any write.
 - **Passkey Credential**: a WebAuthn credential for a User (credential id, public key,
   signature counter).
 - **API Token**: a scoped, revocable automation credential (hash, scopes, expiry, owner).
-- **Category**: a named group (services and/or bookmarks) — id, name, icon, order, visibility.
-- **Service**: a launchable/monitored application tile — id, name, URL, icon, description,
-  pinned, order, visibility, optional monitoring config; belongs to a Category optionally.
-- **Bookmark**: a link in a Category — id, name, URL, icon, order, visibility.
+- **Category**: a named group (services and/or applications and/or bookmarks) — id, name, icon,
+  order, visibility.
+- **Application**: a launchable tile — id, name, URL, icon, description, category_id (optional,
+  defaults to 'Uncategorized'), is_pinned, order, visibility. No monitoring.
+- **Service**: a monitored endpoint tile — id, name, URL, icon, description, category_id (optional,
+  defaults to 'Uncategorized'), is_pinned, order, visibility, optional monitoring config.
+- **Bookmark**: a link in a Category — id, name, URL, icon, category_id (REQUIRED), order, visibility.
 - **Setting**: typed key/value configuration including search providers, integration toggles,
   weather config (secret-bearing), and active theme.
 - **Theme**: design tokens + custom CSS + metadata.
@@ -367,3 +375,30 @@ handling; assert oversized/malformed input is rejected before any write.
 - Docker/Kubernetes integrations are opt-in and read-only; the Docker socket is mounted only
   when the operator enables Docker discovery.
 - `ubuntu:26.04` is available for both target architectures at build time.
+
+## Browser-Verified Acceptance Criteria
+
+These criteria MUST be verified in a browser against the deployed app, not just in cargo test.
+
+### US1 — Dashboard
+- BV-001: GIVEN a logged-in user, WHEN they navigate to /, THEN the dashboard renders with navbar, search box, and three content sections (Services, Applications, Bookmarks)
+- BV-002: GIVEN a bookmark with a URL, WHEN displayed on the dashboard, THEN the bookmark link is clickable and opens the URL in a new tab
+- BV-003: GIVEN bookmarks without a category, WHEN the dashboard renders, THEN they appear in a default 'Uncategorized' section (NOT invisible)
+- BV-004: GIVEN a disabled section (e.g., Applications), WHEN the dashboard renders, THEN that section is hidden
+- BV-005: GIVEN per-section column settings, WHEN columns is set to 3, THEN the section renders with 3 columns
+
+### US2 — Editors
+- BV-006: GIVEN a logged-in admin on /edit/bookmark, WHEN they fill in the form (including category) and click Add, THEN the bookmark appears in the editor list immediately
+- BV-007: GIVEN a newly created bookmark with a category, WHEN the user navigates to the dashboard, THEN the bookmark appears on the dashboard under its category
+- BV-008: GIVEN an existing bookmark, WHEN the user clicks Edit, THEN the form pre-fills with current values and the button changes to Update
+- BV-009: GIVEN an edited bookmark, WHEN the user clicks Update, THEN the bookmark is updated and appears with new values on the dashboard
+- BV-010: GIVEN a service with icon and description, WHEN created via the editor, THEN both fields are stored and displayed on the dashboard tile
+- BV-011: GIVEN an application with icon and description, WHEN created via the editor, THEN it appears as a tile in the Applications section
+
+### US3 — Auth
+- BV-012: GIVEN valid credentials, WHEN the user clicks Log In, THEN they are redirected to the dashboard (not back to login)
+- BV-013: GIVEN an active session, WHEN the user clicks Logout, THEN they are redirected to login and the session is invalidated
+
+### US5 — Theming & Settings
+- BV-014: GIVEN per-section column settings, WHEN the user changes the column count in Settings, THEN the dashboard updates to reflect the new column count
+- BV-015: GIVEN a section enable/disable toggle, WHEN the user disables a section, THEN it disappears from the dashboard and persists across reloads
