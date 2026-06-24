@@ -65,7 +65,7 @@ pub fn StatusTile(service: Service) -> impl IntoView {
     }
 
     view! {
-        <a class="tile status-tile" href=service.url.clone()>
+        <a class="tile status-tile" href=service.url.clone() target="_blank" rel="noopener noreferrer">
             {if let Some(icon) = &service.icon {
                 view! { <img class="tile-icon" src=icon.clone() alt=service.name.clone() /> }.into_any()
             } else {

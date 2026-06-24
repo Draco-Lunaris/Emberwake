@@ -1,5 +1,6 @@
 //! Dashboard, tile, and category components.
 //! SSR-rendered with minimal hydration — mostly static content.
+//! Layout mode (grid/list) is client-side via localStorage.
 
 pub mod status_tile;
 pub mod weather_widget;
@@ -10,13 +11,51 @@ use crate::domain::{Bookmark, CategoryWithBookmarks, DashboardView};
 use status_tile::StatusTile;
 
 /// Dashboard component: renders pinned services and bookmark groups.
+/// Includes a layout toggle (grid/list) persisted via localStorage.
 #[component]
 pub fn Dashboard(data: DashboardView) -> impl IntoView {
     let has_services = !data.pinned_services.is_empty();
     let has_categories = !data.pinned_categories.is_empty();
 
+    let (layout_mode, set_layout_mode) = signal("grid".to_string());
+
+    #[cfg(feature = "hydrate")]
+    {
+        Effect::new(move || {
+            if let Some(window) = web_sys::window()
+                && let Ok(Some(storage)) = window.local_storage()
+                && let Ok(Some(saved)) = storage.get_item("emberwake.layout_mode")
+                && (saved == "grid" || saved == "list")
+            {
+                set_layout_mode.set(saved);
+            }
+        });
+    }
+
+    let toggle_layout = move |_| {
+        let new_mode = if layout_mode.get() == "grid" {
+            "list"
+        } else {
+            "grid"
+        };
+        set_layout_mode.set(new_mode.to_string());
+        #[cfg(feature = "hydrate")]
+        {
+            if let Some(window) = web_sys::window()
+                && let Ok(Some(storage)) = window.local_storage()
+            {
+                let _ = storage.set_item("emberwake.layout_mode", new_mode);
+            }
+        }
+    };
+
     view! {
-        <div class="dashboard">
+        <div class=move || format!("dashboard layout-{}", layout_mode.get())>
+            <div class="layout-toggle">
+                <button type="button" on:click=toggle_layout>
+                    {move || if layout_mode.get() == "grid" { "List View" } else { "Grid View" }}
+                </button>
+            </div>
             <section class="pinned-services">
                 <h2>"Services"</h2>
                 {if has_services {
@@ -79,7 +118,7 @@ fn CategorySection(group: CategoryWithBookmarks) -> impl IntoView {
 fn BookmarkItem(bookmark: Bookmark) -> impl IntoView {
     view! {
         <li>
-            <a href=bookmark.url.clone()>{bookmark.name.clone()}</a>
+            <a href=bookmark.url.clone() target="_blank" rel="noopener noreferrer">{bookmark.name.clone()}</a>
         </li>
     }
 }
