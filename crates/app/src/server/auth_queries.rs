@@ -610,6 +610,21 @@ pub fn parse_session_cookie(cookie_header: Option<&str>) -> Option<String> {
     None
 }
 
+/// Check if the current request is over HTTPS by examining X-Forwarded-Proto header.
+/// Returns true if the request is behind HTTPS (directly or via reverse proxy).
+#[cfg(feature = "ssr")]
+pub async fn is_secure_request() -> bool {
+    use axum::http::HeaderMap;
+    match leptos_axum::extract::<HeaderMap>().await {
+        Ok(headers) => headers
+            .get("x-forwarded-proto")
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.eq_ignore_ascii_case("https"))
+            .unwrap_or(false),
+        Err(_) => false,
+    }
+}
+
 pub fn build_session_cookie(token: &str, secure: bool) -> String {
     let mut cookie = format!(
         "{}={}; Path=/; HttpOnly; SameSite=Lax",

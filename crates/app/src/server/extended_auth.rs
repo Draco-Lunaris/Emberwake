@@ -375,7 +375,8 @@ pub async fn passkey_login_finish(
                 .await?;
 
         if let Some(res_opts) = use_context::<leptos_axum::ResponseOptions>() {
-            let cookie = crate::server::auth_queries::build_session_cookie(&token, false);
+            let secure = crate::server::auth_queries::is_secure_request().await;
+            let cookie = crate::server::auth_queries::build_session_cookie(&token, secure);
             res_opts.insert_header(
                 axum::http::HeaderName::from_static("set-cookie"),
                 axum::http::HeaderValue::from_str(&cookie)

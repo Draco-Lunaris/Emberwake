@@ -206,8 +206,10 @@ pub async fn oidc_callback(
                 .await
                 .unwrap_or_else(|_| (String::new(), String::new()));
 
-                let session_cookie = app::server::auth_queries::build_session_cookie(&token, false);
-                let csrf_cookie = app::server::auth_queries::build_csrf_cookie(&csrf, false);
+                let secure = state.config.security.secure_cookies;
+                let session_cookie =
+                    app::server::auth_queries::build_session_cookie(&token, secure);
+                let csrf_cookie = app::server::auth_queries::build_csrf_cookie(&csrf, secure);
                 axum::response::Response::builder()
                     .status(302)
                     .header("set-cookie", session_cookie)

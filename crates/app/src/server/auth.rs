@@ -127,14 +127,15 @@ pub async fn login(input: LoginInput) -> Result<SessionSummary, ServerFnError<Ap
                     tracing::warn!("ResponseOptions not found in context — cookie will not be set");
                 }
                 if let Some(res_opts) = res_opts {
+                    let secure = crate::server::auth_queries::is_secure_request().await;
                     let session_cookie =
-                        crate::server::auth_queries::build_session_cookie(&token, false);
+                        crate::server::auth_queries::build_session_cookie(&token, secure);
                     res_opts.insert_header(
                         axum::http::HeaderName::from_static("set-cookie"),
                         axum::http::HeaderValue::from_str(&session_cookie)
                             .unwrap_or_else(|_| axum::http::HeaderValue::from_static("")),
                     );
-                    let csrf_cookie = crate::server::auth_queries::build_csrf_cookie(&csrf, false);
+                    let csrf_cookie = crate::server::auth_queries::build_csrf_cookie(&csrf, secure);
                     res_opts.append_header(
                         axum::http::HeaderName::from_static("set-cookie"),
                         axum::http::HeaderValue::from_str(&csrf_cookie)
@@ -219,13 +220,14 @@ pub async fn logout() -> Result<(), ServerFnError<AppError>> {
         }
 
         if let Some(res_opts) = use_context::<leptos_axum::ResponseOptions>() {
-            let session_cookie = crate::server::auth_queries::build_clear_session_cookie(false);
+            let secure = crate::server::auth_queries::is_secure_request().await;
+            let session_cookie = crate::server::auth_queries::build_clear_session_cookie(secure);
             res_opts.insert_header(
                 axum::http::HeaderName::from_static("set-cookie"),
                 axum::http::HeaderValue::from_str(&session_cookie)
                     .unwrap_or_else(|_| axum::http::HeaderValue::from_static("")),
             );
-            let csrf_cookie = crate::server::auth_queries::build_clear_csrf_cookie(false);
+            let csrf_cookie = crate::server::auth_queries::build_clear_csrf_cookie(secure);
             res_opts.append_header(
                 axum::http::HeaderName::from_static("set-cookie"),
                 axum::http::HeaderValue::from_str(&csrf_cookie)

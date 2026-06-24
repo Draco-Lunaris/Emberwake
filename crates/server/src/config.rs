@@ -165,6 +165,8 @@ pub struct SecurityConfig {
     pub hsts_max_age: u64,
     #[serde(default = "default_rate_limit_enabled")]
     pub rate_limit_enabled: bool,
+    #[serde(default = "default_secure_cookies")]
+    pub secure_cookies: bool,
 }
 
 impl Default for SecurityConfig {
@@ -172,6 +174,7 @@ impl Default for SecurityConfig {
         Self {
             hsts_max_age: default_hsts_max_age(),
             rate_limit_enabled: default_rate_limit_enabled(),
+            secure_cookies: default_secure_cookies(),
         }
     }
 }
@@ -182,7 +185,9 @@ fn default_hsts_max_age() -> u64 {
 fn default_rate_limit_enabled() -> bool {
     false
 }
-
+fn default_secure_cookies() -> bool {
+    false
+}
 /// Load configuration from TOML file + environment variables.
 #[allow(clippy::result_large_err)]
 pub fn load() -> Result<Config, figment::Error> {
