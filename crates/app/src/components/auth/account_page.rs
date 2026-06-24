@@ -3,9 +3,65 @@
 use crate::components::Navbar;
 use crate::domain::{
     ApiTokenInput, ApiTokenSecret, ApiTokenSummary, ExternalIdentity, PasskeySummary,
-    RegisterResponse, SessionSummary,
+    SessionSummary,
 };
+
+#[cfg(all(feature = "hydrate", target_arch = "wasm32"))]
+use crate::domain::RegisterResponse;
 use leptos::prelude::*;
+
+/// Call navigator.credentials.create() with the server-provided WebAuthn challenge,
+/// extract the credential fields, base64url-encode the ArrayBuffers, and return a
+/// RegisterResponse ready to send back to the server.
+#[cfg(all(feature = "hydrate", target_arch = "wasm32"))]
+async fn webauthn_create(challenge: serde_json::Value) -> Result<RegisterResponse, String> {
+    use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen_futures::JsFuture;
+
+    let window = web_sys::window().ok_or("no window")?;
+    let challenge_str = serde_json::to_string(&challenge).map_err(|e| format!("serialize: {e}"))?;
+    let public_key = js_sys::JSON::parse(&challenge_str).map_err(|e| format!("parse: {e:?}"))?;
+
+    let opts = js_sys::Object::new();
+    js_sys::Reflect::set(&opts, &"publicKey".into(), &public_key)
+        .map_err(|_| "failed to set publicKey".to_string())?;
+    let create_options: web_sys::CredentialCreationOptions = opts.unchecked_into();
+
+    let credentials = window.navigator().credentials();
+    let result =
+        JsFuture::from(credentials.create_with_credential_creation_options(&create_options))
+            .await
+            .map_err(|e| format!("credentials.create failed: {e:?}"))?;
+
+    let pk_cred: web_sys::PublicKeyCredential = result.unchecked_into();
+
+    let raw_id = js_sys::Uint8Array::new(&pk_cred.raw_id()).to_vec();
+    let raw_id_b64 = URL_SAFE_NO_PAD.encode(&raw_id);
+
+    let response = pk_cred.response();
+    let att_response: web_sys::AuthenticatorAttestationResponse = response.unchecked_into();
+    let att_obj = js_sys::Uint8Array::new(&att_response.attestation_object()).to_vec();
+    let att_obj_b64 = URL_SAFE_NO_PAD.encode(&att_obj);
+
+    let client_data = js_sys::Uint8Array::new(&att_response.client_data_json()).to_vec();
+    let client_data_b64 = URL_SAFE_NO_PAD.encode(&client_data);
+
+    let id = pk_cred.id();
+
+    let credential = serde_json::json!({
+        "id": id,
+        "rawId": raw_id_b64,
+        "type": "public-key",
+        "response": {
+            "attestationObject": att_obj_b64,
+            "clientDataJSON": client_data_b64,
+        },
+    });
+
+    Ok(RegisterResponse { credential })
+}
 
 #[component]
 pub fn AccountPage() -> impl IntoView {
@@ -131,38 +187,30 @@ pub fn AccountPage() -> impl IntoView {
                 leptos::task::spawn_local(async move {
                     set_passkey_status.set(Some("Starting registration…".to_string()));
                     match crate::server::extended_auth::passkey_register_begin().await {
-                        Ok(_opts) => {
-                            // In a real browser, navigator.credentials.create(opts) would be
-                            // called here with the WebAuthn challenge. The resulting credential
-                            // would be sent to passkey_register_finish. Since we cannot invoke
-                            // the WebAuthn browser API from server-side rendering or tests,
-                            // we display the challenge and attempt finish with a mock response.
-                            set_passkey_status.set(Some(
-                                "Registration challenge received. Complete WebAuthn in browser.".to_string(),
-                            ));
-                            // Attempt to finish with a mock credential — will fail validation
-                            // in a real environment but exercises the full server function path.
-                            let mock_resp = RegisterResponse {
-                                credential: serde_json::json!({
-                                    "id": "mock-cred-id",
-                                    "rawId": "mock-cred-id",
-                                    "type": "public-key",
-                                    "response": {
-                                        "attestationObject": "",
-                                        "clientDataJSON": "",
-                                    },
-                                }),
-                            };
-                            match crate::server::extended_auth::passkey_register_finish(mock_resp).await {
-                                Ok(_) => {
-                                    set_passkey_status.set(Some("✓ Passkey registered".to_string()));
-                                    passkeys.refetch();
+                        Ok(opts) => {
+                            #[cfg(all(feature = "hydrate", target_arch = "wasm32"))]
+                            {
+                                match webauthn_create(opts.challenge).await {
+                                    Ok(resp) => {
+                                        match crate::server::extended_auth::passkey_register_finish(resp).await {
+                                            Ok(_) => {
+                                                set_passkey_status.set(Some("✓ Passkey registered".to_string()));
+                                                passkeys.refetch();
+                                            }
+                                            Err(e) => {
+                                                set_passkey_status.set(Some(format!("Registration failed: {e}")));
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        set_passkey_status.set(Some(format!("WebAuthn error: {e}")));
+                                    }
                                 }
-                                Err(e) => {
-                                    set_passkey_status.set(Some(format!(
-                                        "Registration challenge sent (browser WebAuthn step needed): {e}"
-                                    )));
-                                }
+                            }
+                            #[cfg(not(all(feature = "hydrate", target_arch = "wasm32")))]
+                            {
+                                let _ = opts;
+                                set_passkey_status.set(Some("Passkey registration requires a browser.".to_string()));
                             }
                         }
                         Err(e) => {
