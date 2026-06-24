@@ -268,6 +268,121 @@ async fn http_oidc_callback_invalid_state_returns_400() {
     );
 }
 
+/// T042: PKCE challenge generation produces a non-empty verifier and challenge.
+/// The openidconnect crate's PkceCodeChallenge::new_random_sha256() is used
+/// by oidc_login() to generate the PKCE pair. This test verifies the generation
+/// and that the verifier can be stored in and retrieved from OidcStateStore.
+#[test]
+fn pkce_challenge_generation_and_storage_roundtrip() {
+    use openidconnect::PkceCodeChallenge;
+    use server::auth::oidc::{OidcSessionState, OidcStateStore};
+
+    // Generate PKCE challenge + verifier (same as oidc_login does)
+    let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
+
+    // Challenge should be non-empty (it's sent to the IdP)
+    assert!(
+        !challenge.as_str().is_empty(),
+        "PKCE challenge should be non-empty"
+    );
+
+    // Verifier should be non-empty (it's sent in the token exchange)
+    let verifier_str = verifier.secret().to_string();
+    assert!(
+        !verifier_str.is_empty(),
+        "PKCE verifier should be non-empty"
+    );
+
+    // Store in OidcStateStore keyed by CSRF state (same as oidc_login)
+    let store = OidcStateStore::new();
+    let csrf_state = "test-csrf-state-123".to_string();
+    let nonce = openidconnect::Nonce::new_random();
+    let nonce_str = nonce.secret().to_string();
+    store.put(
+        csrf_state.clone(),
+        OidcSessionState {
+            pkce_verifier: verifier,
+            nonce,
+        },
+    );
+
+    // Retrieve and verify the stored state
+    let retrieved = store.take(&csrf_state);
+    assert!(
+        retrieved.is_some(),
+        "stored PKCE state should be retrievable"
+    );
+    let retrieved = retrieved.unwrap();
+    assert_eq!(
+        retrieved.pkce_verifier.secret(),
+        &verifier_str,
+        "stored PKCE verifier should match the generated one"
+    );
+    assert_eq!(
+        retrieved.nonce.secret(),
+        &nonce_str,
+        "stored nonce should match the generated one"
+    );
+
+    // Second take should return None (consumed — prevents replay)
+    let second = store.take(&csrf_state);
+    assert!(
+        second.is_none(),
+        "PKCE state should be consumed after take (single-use, prevents replay)"
+    );
+}
+
+/// T042: OIDC state store rejects unknown state (invalid/expired callback).
+/// This tests the state validation path that oidc_callback() uses before
+/// attempting any IdP discovery or token exchange.
+#[test]
+fn oidc_state_store_rejects_unknown_state() {
+    use server::auth::oidc::OidcStateStore;
+
+    let store = OidcStateStore::new();
+
+    // Take from empty store returns None
+    let result = store.take("nonexistent-state");
+    assert!(
+        result.is_none(),
+        "unknown state should return None (rejected)"
+    );
+
+    // Store one state, take a different key
+    use openidconnect::PkceCodeChallenge;
+    let (_, verifier) = PkceCodeChallenge::new_random_sha256();
+    let nonce = openidconnect::Nonce::new_random();
+    store.put(
+        "valid-state".to_string(),
+        server::auth::oidc::OidcSessionState {
+            pkce_verifier: verifier,
+            nonce,
+        },
+    );
+
+    let wrong = store.take("wrong-state");
+    assert!(
+        wrong.is_none(),
+        "mismatched state should return None (rejected)"
+    );
+
+    // Correct state still available
+    let correct = store.take("valid-state");
+    assert!(correct.is_some(), "correct state should be retrievable");
+}
+
+// T042: Full OIDC code+PKCE→session roundtrip against a stub IdP is not tested here.
+// A complete stub IdP test requires a mock HTTP server serving:
+//   1. GET /.well-known/openid-configuration → discovery document
+//   2. POST /token → token response with signed ID token
+//   3. The ID token must be signed with a key in the JWKS endpoint
+// This requires a mock HTTP server (e.g., wiremock or mockito) plus a test JWKS
+// keypair. The tests above verify the components that don't need a live IdP:
+//   - PKCE challenge generation + storage/retrieval
+//   - State validation (rejects unknown/mismatched state)
+//   - Admin-approve provisioning (identity created unapproved)
+//   - HTTP route handlers (503 when disabled, 400 for invalid state)
+
 /// T042: OIDC login route with empty issuer returns 503 (misconfigured).
 #[tokio::test]
 async fn http_oidc_login_empty_issuer_returns_503() {

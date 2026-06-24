@@ -25,9 +25,9 @@ pub struct OidcStateStore {
     inner: Arc<Mutex<HashMap<String, OidcSessionState>>>,
 }
 
-struct OidcSessionState {
-    pkce_verifier: PkceCodeVerifier,
-    nonce: Nonce,
+pub struct OidcSessionState {
+    pub pkce_verifier: PkceCodeVerifier,
+    pub nonce: Nonce,
 }
 
 impl OidcStateStore {
@@ -35,13 +35,13 @@ impl OidcStateStore {
         Self::default()
     }
 
-    fn put(&self, key: String, state: OidcSessionState) {
+    pub fn put(&self, key: String, state: OidcSessionState) {
         if let Ok(mut map) = self.inner.lock() {
             map.insert(key, state);
         }
     }
 
-    fn take(&self, key: &str) -> Option<OidcSessionState> {
+    pub fn take(&self, key: &str) -> Option<OidcSessionState> {
         if let Ok(mut map) = self.inner.lock() {
             map.remove(key)
         } else {
