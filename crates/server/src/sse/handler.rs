@@ -17,17 +17,27 @@ use app::domain::{SseStatusEvent, Visibility};
 use crate::sse::SseEvent;
 use crate::state::AppState;
 
-/// Check if the caller has an authenticated session by looking for a valid session cookie.
-/// Returns true if the session is valid (private-service + discovery events included).
-async fn has_session(state: &AppState, headers: &HeaderMap) -> bool {
+/// Caller session level for SSE filtering.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SseAuthLevel {
+    Anonymous,
+    Authenticated,
+    Admin,
+}
+
+/// Determine the caller's auth level by checking the session cookie.
+async fn auth_level(state: &AppState, headers: &HeaderMap) -> SseAuthLevel {
     let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok());
     if let Some(cookie) = cookie_header
         && let Some(token) = app::server::auth_queries::parse_session_cookie(Some(cookie))
-        && let Ok(Some(_)) = app::server::auth_queries::lookup_session(&state.db, &token).await
+        && let Ok(Some(info)) = app::server::auth_queries::lookup_session(&state.db, &token).await
     {
-        return true;
+        if info.role == app::domain::Role::Admin {
+            return SseAuthLevel::Admin;
+        }
+        return SseAuthLevel::Authenticated;
     }
-    false
+    SseAuthLevel::Anonymous
 }
 
 /// SSE `/events` handler.
@@ -37,17 +47,23 @@ pub async fn events_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let authenticated = has_session(&state, &headers).await;
+    let level = auth_level(&state, &headers).await;
     let rx = state.sse_hub.subscribe();
 
     let stream = BroadcastStream::new(rx).filter_map(move |item| {
-        let authed = authenticated;
+        let lvl = level;
         item.ok().and_then(move |event| {
             match &event {
                 SseEvent::Status(se) => {
-                    // Public stream: only public-service status.
+                    // Anonymous: only public-service status.
                     // Authenticated: includes private-service status.
-                    if !authed && se.visibility == Visibility::Private {
+                    // Admin: includes restricted-service status.
+                    let allowed = match se.visibility {
+                        Visibility::Public => true,
+                        Visibility::Private => lvl != SseAuthLevel::Anonymous,
+                        Visibility::Restricted => lvl == SseAuthLevel::Admin,
+                    };
+                    if !allowed {
                         return None;
                     }
                     let json = serde_json::to_string(&SseStatusEvent {
@@ -64,8 +80,8 @@ pub async fn events_handler(
                     Some(Ok(Event::default().event("weather").data(json)))
                 }
                 SseEvent::Discovery(de) => {
-                    // Discovery events are admin-only — require authenticated session.
-                    if !authed {
+                    // Discovery events are admin-only.
+                    if lvl != SseAuthLevel::Admin {
                         return None;
                     }
                     let json = serde_json::to_string(de).unwrap_or_default();

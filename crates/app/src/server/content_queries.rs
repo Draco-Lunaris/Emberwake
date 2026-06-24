@@ -90,6 +90,12 @@ pub async fn list_dashboard_query(
             "SELECT id, category_id, name, url, icon, description, is_pinned, \
              order_index, visibility, monitor_enabled, monitor_kind, monitor_target, \
              monitor_interval_s, created_at, updated_at \
+             FROM service WHERE is_pinned = 1 AND visibility IN ('public', 'private') ORDER BY order_index",
+        ),
+        VisibilityFilter::AllIncludingRestricted => sqlx::query(
+            "SELECT id, category_id, name, url, icon, description, is_pinned, \
+             order_index, visibility, monitor_enabled, monitor_kind, monitor_target, \
+             monitor_interval_s, created_at, updated_at \
              FROM service WHERE is_pinned = 1 ORDER BY order_index",
         ),
     }
@@ -104,6 +110,10 @@ pub async fn list_dashboard_query(
              FROM category WHERE visibility = 'public' ORDER BY order_index",
         ),
         VisibilityFilter::All => sqlx::query(
+            "SELECT id, name, icon, order_index, visibility, created_at, updated_at \
+             FROM category WHERE visibility IN ('public', 'private') ORDER BY order_index",
+        ),
+        VisibilityFilter::AllIncludingRestricted => sqlx::query(
             "SELECT id, name, icon, order_index, visibility, created_at, updated_at \
              FROM category ORDER BY order_index",
         ),
@@ -122,6 +132,11 @@ pub async fn list_dashboard_query(
                  WHERE category_id = ? AND visibility = 'public' ORDER BY order_index",
             ),
             VisibilityFilter::All => sqlx::query(
+                "SELECT id, category_id, name, url, icon, order_index, visibility, \
+                 created_at, updated_at FROM bookmark \
+                 WHERE category_id = ? AND visibility IN ('public', 'private') ORDER BY order_index",
+            ),
+            VisibilityFilter::AllIncludingRestricted => sqlx::query(
                 "SELECT id, category_id, name, url, icon, order_index, visibility, \
                  created_at, updated_at FROM bookmark \
                  WHERE category_id = ? ORDER BY order_index",
@@ -156,6 +171,12 @@ pub async fn list_categories_query(
              FROM category c WHERE c.visibility = 'public' ORDER BY c.order_index",
         ),
         VisibilityFilter::All => sqlx::query(
+            "SELECT c.id, c.name, c.icon, c.order_index, c.visibility, c.created_at, c.updated_at, \
+             (SELECT COUNT(*) FROM service s WHERE s.category_id = c.id AND s.visibility IN ('public', 'private')) AS service_count, \
+             (SELECT COUNT(*) FROM bookmark b WHERE b.category_id = c.id AND b.visibility IN ('public', 'private')) AS bookmark_count \
+             FROM category c WHERE c.visibility IN ('public', 'private') ORDER BY c.order_index",
+        ),
+        VisibilityFilter::AllIncludingRestricted => sqlx::query(
             "SELECT c.id, c.name, c.icon, c.order_index, c.visibility, c.created_at, c.updated_at, \
              (SELECT COUNT(*) FROM service s WHERE s.category_id = c.id) AS service_count, \
              (SELECT COUNT(*) FROM bookmark b WHERE b.category_id = c.id) AS bookmark_count \
@@ -204,6 +225,17 @@ pub async fn list_services_query(
                 "SELECT id, category_id, name, url, icon, description, is_pinned, \
                  order_index, visibility, monitor_enabled, monitor_kind, monitor_target, \
                  monitor_interval_s, created_at, updated_at \
+                 FROM service WHERE category_id = ? AND visibility IN ('public', 'private') ORDER BY order_index",
+            )
+            .bind(cat_id.to_string())
+            .fetch_all(pool)
+            .await?
+        }
+        (Some(cat_id), VisibilityFilter::AllIncludingRestricted) => {
+            sqlx::query(
+                "SELECT id, category_id, name, url, icon, description, is_pinned, \
+                 order_index, visibility, monitor_enabled, monitor_kind, monitor_target, \
+                 monitor_interval_s, created_at, updated_at \
                  FROM service WHERE category_id = ? ORDER BY order_index",
             )
             .bind(cat_id.to_string())
@@ -221,6 +253,16 @@ pub async fn list_services_query(
             .await?
         }
         (None, VisibilityFilter::All) => {
+            sqlx::query(
+                "SELECT id, category_id, name, url, icon, description, is_pinned, \
+                 order_index, visibility, monitor_enabled, monitor_kind, monitor_target, \
+                 monitor_interval_s, created_at, updated_at \
+                 FROM service WHERE visibility IN ('public', 'private') ORDER BY order_index",
+            )
+            .fetch_all(pool)
+            .await?
+        }
+        (None, VisibilityFilter::AllIncludingRestricted) => {
             sqlx::query(
                 "SELECT id, category_id, name, url, icon, description, is_pinned, \
                  order_index, visibility, monitor_enabled, monitor_kind, monitor_target, \
@@ -255,6 +297,16 @@ pub async fn list_bookmarks_query(
             sqlx::query(
                 "SELECT id, category_id, name, url, icon, order_index, visibility, \
                  created_at, updated_at FROM bookmark \
+                 WHERE category_id = ? AND visibility IN ('public', 'private') ORDER BY order_index",
+            )
+            .bind(cat_id.to_string())
+            .fetch_all(pool)
+            .await?
+        }
+        (Some(cat_id), VisibilityFilter::AllIncludingRestricted) => {
+            sqlx::query(
+                "SELECT id, category_id, name, url, icon, order_index, visibility, \
+                 created_at, updated_at FROM bookmark \
                  WHERE category_id = ? ORDER BY order_index",
             )
             .bind(cat_id.to_string())
@@ -271,6 +323,15 @@ pub async fn list_bookmarks_query(
             .await?
         }
         (None, VisibilityFilter::All) => {
+            sqlx::query(
+                "SELECT id, category_id, name, url, icon, order_index, visibility, \
+                 created_at, updated_at FROM bookmark \
+                 WHERE visibility IN ('public', 'private') ORDER BY order_index",
+            )
+            .fetch_all(pool)
+            .await?
+        }
+        (None, VisibilityFilter::AllIncludingRestricted) => {
             sqlx::query(
                 "SELECT id, category_id, name, url, icon, order_index, visibility, \
                  created_at, updated_at FROM bookmark ORDER BY order_index",

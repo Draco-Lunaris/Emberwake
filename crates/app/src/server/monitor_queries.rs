@@ -194,6 +194,12 @@ pub async fn list_status_readings(
                  WHERE s.visibility = 'public'",
         ),
         crate::domain::VisibilityFilter::All => sqlx::query(
+            "SELECT sr.service_id, sr.state, sr.latency_ms, sr.reason, sr.checked_at \
+                 FROM status_reading sr \
+                 JOIN service s ON sr.service_id = s.id \
+                 WHERE s.visibility IN ('public', 'private')",
+        ),
+        crate::domain::VisibilityFilter::AllIncludingRestricted => sqlx::query(
             "SELECT service_id, state, latency_ms, reason, checked_at FROM status_reading",
         ),
     };

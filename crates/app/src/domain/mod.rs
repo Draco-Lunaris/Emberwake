@@ -11,12 +11,14 @@ pub enum Visibility {
     #[default]
     Public,
     Private,
+    Restricted,
 }
 impl std::fmt::Display for Visibility {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Public => write!(f, "public"),
             Self::Private => write!(f, "private"),
+            Self::Restricted => write!(f, "restricted"),
         }
     }
 }
@@ -28,6 +30,7 @@ impl std::str::FromStr for Visibility {
         match s {
             "public" => Ok(Self::Public),
             "private" => Ok(Self::Private),
+            "restricted" => Ok(Self::Restricted),
             other => Err(format!("invalid visibility: {other}")),
         }
     }
@@ -132,8 +135,10 @@ pub struct SearchProvider {
 pub enum VisibilityFilter {
     /// Only return public rows (for anonymous/unauthorized callers).
     PublicOnly,
-    /// Return all rows including private (for authenticated callers).
+    /// Return public + private rows, excluding restricted (for authenticated non-admin callers).
     All,
+    /// Return all rows including restricted (for admin callers).
+    AllIncludingRestricted,
 }
 
 impl VisibilityFilter {
@@ -141,7 +146,8 @@ impl VisibilityFilter {
     pub fn where_clause(&self) -> &'static str {
         match self {
             Self::PublicOnly => "visibility = 'public'",
-            Self::All => "1=1",
+            Self::All => "visibility IN ('public', 'private')",
+            Self::AllIncludingRestricted => "1=1",
         }
     }
 }

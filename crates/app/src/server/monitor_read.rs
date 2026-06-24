@@ -13,7 +13,13 @@ use crate::error::AppError;
 #[cfg(feature = "ssr")]
 async fn visibility_for_caller(pool: &sqlx::SqlitePool) -> VisibilityFilter {
     match crate::server::auth_helper::require_session(pool).await {
-        Ok(_) => VisibilityFilter::All,
+        Ok(info) => {
+            if info.role == crate::domain::Role::Admin {
+                VisibilityFilter::AllIncludingRestricted
+            } else {
+                VisibilityFilter::All
+            }
+        }
         Err(_) => VisibilityFilter::PublicOnly,
     }
 }

@@ -8,7 +8,8 @@ use leptos::task::spawn_local;
 use uuid::Uuid;
 
 use crate::domain::{
-    Bookmark, BookmarkInput, Category, CategoryInput, Service, ServiceInput, Visibility,
+    Bookmark, BookmarkInput, BookmarkPatch, Category, CategoryInput, CategoryPatch, Service,
+    ServiceInput, ServicePatch, Visibility,
 };
 use crate::server::content_write;
 
@@ -21,14 +22,25 @@ pub fn CategoryEditor(
     set_categories: WriteSignal<Vec<Category>>,
 ) -> impl IntoView {
     let (name, set_name) = signal(String::new());
+    let (visibility, set_visibility) = signal(Visibility::Public);
     let (error, set_error) = signal(Option::<String>::None);
     let (dragged_id, set_dragged_id) = signal(Option::<Uuid>::None);
     let (pending_delete, set_pending_delete) = signal(Option::<Uuid>::None);
+    let (editing_id, set_editing_id) = signal(Option::<Uuid>::None);
 
     let create_action = Action::new(move |input: &CategoryInput| {
         let input = input.clone();
         async move {
             content_write::create_category(input)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    let update_action = Action::new(move |(id, patch): &(Uuid, CategoryPatch)| {
+        let (id, patch) = (*id, patch.clone());
+        async move {
+            content_write::update_category(id, patch)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -56,6 +68,23 @@ pub fn CategoryEditor(
     });
 
     Effect::new(move || {
+        if let Some(Ok(cat)) = update_action.value().get() {
+            set_categories.update(|cats| {
+                if let Some(c) = cats.iter_mut().find(|c| c.id == cat.id) {
+                    *c = cat.clone();
+                }
+            });
+            set_editing_id.set(None);
+            set_name.set(String::new());
+            set_visibility.set(Visibility::Public);
+            set_error.set(None);
+        }
+        if let Some(Err(e)) = update_action.value().get() {
+            set_error.set(Some(e));
+        }
+    });
+
+    Effect::new(move || {
         if let Some(Ok(deleted_id)) = delete_action.value().get() {
             set_categories.update(|cats| cats.retain(|c| c.id != deleted_id));
             set_pending_delete.set(None);
@@ -72,12 +101,21 @@ pub fn CategoryEditor(
             {move || error.get().map(|e| view! { <p class="error">{e}</p> })}
             <form on:submit=move |ev| {
                 ev.prevent_default();
-                let input = CategoryInput {
-                    name: name.get(),
-                    icon: None,
-                    visibility: Visibility::Public,
-                };
-                create_action.dispatch(input);
+                if let Some(id) = editing_id.get() {
+                    let patch = CategoryPatch {
+                        name: Some(name.get()),
+                        icon: None,
+                        visibility: Some(visibility.get()),
+                    };
+                    update_action.dispatch((id, patch));
+                } else {
+                    let input = CategoryInput {
+                        name: name.get(),
+                        icon: None,
+                        visibility: visibility.get(),
+                    };
+                    create_action.dispatch(input);
+                }
             }>
                 <input
                     type="text"
@@ -85,13 +123,28 @@ pub fn CategoryEditor(
                     prop:value=name
                     on:input=move |ev| set_name.set(event_target_value(&ev))
                 />
-                <button type="submit">"Add"</button>
+                <select on:change=move |ev| set_visibility.set(parse_visibility(&event_target_value(&ev)))>
+                    <option value="public" selected=move || visibility.get() == Visibility::Public>"Public"</option>
+                    <option value="private" selected=move || visibility.get() == Visibility::Private>"Private"</option>
+                    <option value="restricted" selected=move || visibility.get() == Visibility::Restricted>"Restricted"</option>
+                </select>
+                <button type="submit">{move || if editing_id.get().is_some() { "Update" } else { "Add" }}</button>
+                {move || editing_id.get().map(|_| view! {
+                    <button type="button" on:click=move |_| {
+                        set_editing_id.set(None);
+                        set_name.set(String::new());
+                        set_visibility.set(Visibility::Public);
+                        set_error.set(None);
+                    }>"Cancel"</button>
+                })}
             </form>
             <ul class="reorder-list">
                 {move || {
                     categories.get().into_iter().map(|cat| {
                         let cat_id = cat.id;
                         let cat_name = cat.name.clone();
+                        let cat_visibility = cat.visibility;
+                        let edit_name = cat_name.clone();
                         view! {
                             <li
                                 draggable="true"
@@ -116,7 +169,17 @@ pub fn CategoryEditor(
                                 <button
                                     type="button"
                                     on:click=move |_| {
-                                        if confirm_delete(&format!("Delete category \"{}\"?", cat_name)) {
+                                        set_name.set(edit_name.clone());
+                                        set_visibility.set(cat_visibility);
+                                        set_editing_id.set(Some(cat_id));
+                                    }
+                                >
+                                    "Edit"
+                                </button>
+                                <button
+                                    type="button"
+                                    on:click=move |_| {
+                                        if confirm_delete(&format!("Delete category \"{}\"", cat_name)) {
                                             set_pending_delete.set(Some(cat_id));
                                             delete_action.dispatch(cat_id);
                                         }
@@ -143,14 +206,25 @@ pub fn ServiceEditor(
 ) -> impl IntoView {
     let (name, set_name) = signal(String::new());
     let (url, set_url) = signal(String::new());
+    let (visibility, set_visibility) = signal(Visibility::Public);
     let (error, set_error) = signal(Option::<String>::None);
     let (dragged_id, set_dragged_id) = signal(Option::<Uuid>::None);
     let (pending_delete, set_pending_delete) = signal(Option::<Uuid>::None);
+    let (editing_id, set_editing_id) = signal(Option::<Uuid>::None);
 
     let create_action = Action::new(move |input: &ServiceInput| {
         let input = input.clone();
         async move {
             content_write::create_service(input)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    let update_action = Action::new(move |(id, patch): &(Uuid, ServicePatch)| {
+        let (id, patch) = (*id, patch.clone());
+        async move {
+            content_write::update_service(id, patch)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -188,6 +262,24 @@ pub fn ServiceEditor(
     });
 
     Effect::new(move || {
+        if let Some(Ok(svc)) = update_action.value().get() {
+            set_services.update(|svcs| {
+                if let Some(s) = svcs.iter_mut().find(|s| s.id == svc.id) {
+                    *s = svc.clone();
+                }
+            });
+            set_editing_id.set(None);
+            set_name.set(String::new());
+            set_url.set(String::new());
+            set_visibility.set(Visibility::Public);
+            set_error.set(None);
+        }
+        if let Some(Err(e)) = update_action.value().get() {
+            set_error.set(Some(e));
+        }
+    });
+
+    Effect::new(move || {
         if let Some(Err(e)) = pin_action.value().get() {
             set_error.set(Some(format!("Pin toggle failed: {e}")));
         }
@@ -210,20 +302,37 @@ pub fn ServiceEditor(
             {move || error.get().map(|e| view! { <p class="error">{e}</p> })}
             <form on:submit=move |ev| {
                 ev.prevent_default();
-                let input = ServiceInput {
-                    category_id: None,
-                    name: name.get(),
-                    url: url.get(),
-                    icon: None,
-                    description: None,
-                    is_pinned: false,
-                    visibility: Visibility::Public,
-                    monitor_enabled: false,
-                    monitor_kind: None,
-                    monitor_target: None,
-                    monitor_interval_s: None,
-                };
-                create_action.dispatch(input);
+                if let Some(id) = editing_id.get() {
+                    let patch = ServicePatch {
+                        category_id: None,
+                        name: Some(name.get()),
+                        url: Some(url.get()),
+                        icon: None,
+                        description: None,
+                        is_pinned: None,
+                        visibility: Some(visibility.get()),
+                        monitor_enabled: None,
+                        monitor_kind: None,
+                        monitor_target: None,
+                        monitor_interval_s: None,
+                    };
+                    update_action.dispatch((id, patch));
+                } else {
+                    let input = ServiceInput {
+                        category_id: None,
+                        name: name.get(),
+                        url: url.get(),
+                        icon: None,
+                        description: None,
+                        is_pinned: false,
+                        visibility: visibility.get(),
+                        monitor_enabled: false,
+                        monitor_kind: None,
+                        monitor_target: None,
+                        monitor_interval_s: None,
+                    };
+                    create_action.dispatch(input);
+                }
             }>
                 <input
                     type="text"
@@ -237,14 +346,32 @@ pub fn ServiceEditor(
                     prop:value=url
                     on:input=move |ev| set_url.set(event_target_value(&ev))
                 />
-                <button type="submit">"Add"</button>
+                <select on:change=move |ev| set_visibility.set(parse_visibility(&event_target_value(&ev)))>
+                    <option value="public" selected=move || visibility.get() == Visibility::Public>"Public"</option>
+                    <option value="private" selected=move || visibility.get() == Visibility::Private>"Private"</option>
+                    <option value="restricted" selected=move || visibility.get() == Visibility::Restricted>"Restricted"</option>
+                </select>
+                <button type="submit">{move || if editing_id.get().is_some() { "Update" } else { "Add" }}</button>
+                {move || editing_id.get().map(|_| view! {
+                    <button type="button" on:click=move |_| {
+                        set_editing_id.set(None);
+                        set_name.set(String::new());
+                        set_url.set(String::new());
+                        set_visibility.set(Visibility::Public);
+                        set_error.set(None);
+                    }>"Cancel"</button>
+                })}
             </form>
             <ul class="reorder-list">
                 {move || {
                     services.get().into_iter().map(|svc| {
                         let svc_id = svc.id;
                         let svc_name = svc.name.clone();
+                        let svc_url = svc.url.clone();
+                        let svc_visibility = svc.visibility;
                         let is_pinned = svc.is_pinned;
+                        let edit_name = svc_name.clone();
+                        let edit_url = svc_url.clone();
                         view! {
                             <li
                                 draggable="true"
@@ -282,7 +409,18 @@ pub fn ServiceEditor(
                                 <button
                                     type="button"
                                     on:click=move |_| {
-                                        if confirm_delete(&format!("Delete service \"{}\"?", svc_name)) {
+                                        set_name.set(edit_name.clone());
+                                        set_url.set(edit_url.clone());
+                                        set_visibility.set(svc_visibility);
+                                        set_editing_id.set(Some(svc_id));
+                                    }
+                                >
+                                    "Edit"
+                                </button>
+                                <button
+                                    type="button"
+                                    on:click=move |_| {
+                                        if confirm_delete(&format!("Delete service \"{}\"", svc_name)) {
                                             set_pending_delete.set(Some(svc_id));
                                             delete_action.dispatch(svc_id);
                                         }
@@ -310,14 +448,25 @@ pub fn BookmarkEditor(
 ) -> impl IntoView {
     let (name, set_name) = signal(String::new());
     let (url, set_url) = signal(String::new());
+    let (visibility, set_visibility) = signal(Visibility::Public);
     let (error, set_error) = signal(Option::<String>::None);
     let (dragged_id, set_dragged_id) = signal(Option::<Uuid>::None);
     let (pending_delete, set_pending_delete) = signal(Option::<Uuid>::None);
+    let (editing_id, set_editing_id) = signal(Option::<Uuid>::None);
 
     let create_action = Action::new(move |input: &BookmarkInput| {
         let input = input.clone();
         async move {
             content_write::create_bookmark(input)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    let update_action = Action::new(move |(id, patch): &(Uuid, BookmarkPatch)| {
+        let (id, patch) = (*id, patch.clone());
+        async move {
+            content_write::update_bookmark(id, patch)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -346,6 +495,24 @@ pub fn BookmarkEditor(
     });
 
     Effect::new(move || {
+        if let Some(Ok(bm)) = update_action.value().get() {
+            set_bookmarks.update(|bms| {
+                if let Some(b) = bms.iter_mut().find(|b| b.id == bm.id) {
+                    *b = bm.clone();
+                }
+            });
+            set_editing_id.set(None);
+            set_name.set(String::new());
+            set_url.set(String::new());
+            set_visibility.set(Visibility::Public);
+            set_error.set(None);
+        }
+        if let Some(Err(e)) = update_action.value().get() {
+            set_error.set(Some(e));
+        }
+    });
+
+    Effect::new(move || {
         if let Some(Ok(deleted_id)) = delete_action.value().get() {
             set_bookmarks.update(|bms| bms.retain(|b| b.id != deleted_id));
             set_pending_delete.set(None);
@@ -362,14 +529,25 @@ pub fn BookmarkEditor(
             {move || error.get().map(|e| view! { <p class="error">{e}</p> })}
             <form on:submit=move |ev| {
                 ev.prevent_default();
-                let input = BookmarkInput {
-                    category_id,
-                    name: name.get(),
-                    url: url.get(),
-                    icon: None,
-                    visibility: Visibility::Public,
-                };
-                create_action.dispatch(input);
+                if let Some(id) = editing_id.get() {
+                    let patch = BookmarkPatch {
+                        category_id: None,
+                        name: Some(name.get()),
+                        url: Some(url.get()),
+                        icon: None,
+                        visibility: Some(visibility.get()),
+                    };
+                    update_action.dispatch((id, patch));
+                } else {
+                    let input = BookmarkInput {
+                        category_id,
+                        name: name.get(),
+                        url: url.get(),
+                        icon: None,
+                        visibility: visibility.get(),
+                    };
+                    create_action.dispatch(input);
+                }
             }>
                 <input
                     type="text"
@@ -383,13 +561,31 @@ pub fn BookmarkEditor(
                     prop:value=url
                     on:input=move |ev| set_url.set(event_target_value(&ev))
                 />
-                <button type="submit">"Add"</button>
+                <select on:change=move |ev| set_visibility.set(parse_visibility(&event_target_value(&ev)))>
+                    <option value="public" selected=move || visibility.get() == Visibility::Public>"Public"</option>
+                    <option value="private" selected=move || visibility.get() == Visibility::Private>"Private"</option>
+                    <option value="restricted" selected=move || visibility.get() == Visibility::Restricted>"Restricted"</option>
+                </select>
+                <button type="submit">{move || if editing_id.get().is_some() { "Update" } else { "Add" }}</button>
+                {move || editing_id.get().map(|_| view! {
+                    <button type="button" on:click=move |_| {
+                        set_editing_id.set(None);
+                        set_name.set(String::new());
+                        set_url.set(String::new());
+                        set_visibility.set(Visibility::Public);
+                        set_error.set(None);
+                    }>"Cancel"</button>
+                })}
             </form>
             <ul class="reorder-list">
                 {move || {
                     bookmarks.get().into_iter().map(|bm| {
                         let bm_id = bm.id;
                         let bm_name = bm.name.clone();
+                        let bm_url = bm.url.clone();
+                        let bm_visibility = bm.visibility;
+                        let edit_name = bm_name.clone();
+                        let edit_url = bm_url.clone();
                         view! {
                             <li
                                 draggable="true"
@@ -415,7 +611,18 @@ pub fn BookmarkEditor(
                                 <button
                                     type="button"
                                     on:click=move |_| {
-                                        if confirm_delete(&format!("Delete bookmark \"{}\"?", bm_name)) {
+                                        set_name.set(edit_name.clone());
+                                        set_url.set(edit_url.clone());
+                                        set_visibility.set(bm_visibility);
+                                        set_editing_id.set(Some(bm_id));
+                                    }
+                                >
+                                    "Edit"
+                                </button>
+                                <button
+                                    type="button"
+                                    on:click=move |_| {
+                                        if confirm_delete(&format!("Delete bookmark \"{}\"", bm_name)) {
                                             set_pending_delete.set(Some(bm_id));
                                             delete_action.dispatch(bm_id);
                                         }
@@ -429,6 +636,15 @@ pub fn BookmarkEditor(
                 }}
             </ul>
         </div>
+    }
+}
+
+/// Parse a visibility string from a `<select>` element into a Visibility enum.
+fn parse_visibility(s: &str) -> Visibility {
+    match s {
+        "private" => Visibility::Private,
+        "restricted" => Visibility::Restricted,
+        _ => Visibility::Public,
     }
 }
 
