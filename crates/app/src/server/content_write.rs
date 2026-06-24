@@ -7,8 +7,8 @@ use leptos::server_fn::ServerFnError;
 use uuid::Uuid;
 
 use crate::domain::{
-    Bookmark, BookmarkInput, BookmarkPatch, Category, CategoryInput, CategoryPatch, IconRef,
-    Service, ServiceInput, ServicePatch,
+    Application, ApplicationInput, ApplicationPatch, Bookmark, BookmarkInput, BookmarkPatch,
+    Category, CategoryInput, CategoryPatch, IconRef, Service, ServiceInput, ServicePatch,
 };
 use crate::error::AppError;
 
@@ -290,6 +290,167 @@ pub async fn set_service_pinned(
         )
         .await;
         Ok(svc)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (id, pinned);
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+// --- Application mutations ---
+
+#[leptos::server]
+pub async fn create_application(
+    input: ApplicationInput,
+) -> Result<Application, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = require_auth_csrf(&pool).await?;
+        crate::server::content_write_queries::validate_name(&input.name)?;
+        crate::server::content_write_queries::validate_url(&input.url)?;
+        let app =
+            crate::server::content_write_queries::create_application_query(&pool, input).await?;
+        audit_content(
+            &pool,
+            info.user_id,
+            "content_mutate",
+            &format!("application:{}", app.id),
+        )
+        .await;
+        Ok(app)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = input;
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+#[leptos::server]
+pub async fn update_application(
+    id: Uuid,
+    patch: ApplicationPatch,
+) -> Result<Application, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = require_auth_csrf(&pool).await?;
+        if let Some(ref name) = patch.name {
+            crate::server::content_write_queries::validate_name(name)?;
+        }
+        if let Some(ref url) = patch.url {
+            crate::server::content_write_queries::validate_url(url)?;
+        }
+        let app = crate::server::content_write_queries::update_application_query(&pool, id, patch)
+            .await?;
+        audit_content(
+            &pool,
+            info.user_id,
+            "content_mutate",
+            &format!("application:{}", app.id),
+        )
+        .await;
+        Ok(app)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (id, patch);
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+#[leptos::server]
+pub async fn delete_application(id: Uuid) -> Result<(), ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = require_auth_csrf(&pool).await?;
+        crate::server::content_write_queries::delete_application_query(&pool, id).await?;
+        audit_content(
+            &pool,
+            info.user_id,
+            "content_mutate",
+            &format!("application:delete:{}", id),
+        )
+        .await;
+        Ok(())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = id;
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+#[leptos::server]
+pub async fn reorder_applications(
+    category: Option<Uuid>,
+    order: Vec<Uuid>,
+) -> Result<(), ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = require_auth_csrf(&pool).await?;
+        crate::server::content_write_queries::reorder_applications_query(&pool, category, order)
+            .await?;
+        audit_content(
+            &pool,
+            info.user_id,
+            "content_mutate",
+            "applications:reorder",
+        )
+        .await;
+        Ok(())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (category, order);
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+#[leptos::server]
+pub async fn set_application_pinned(
+    id: Uuid,
+    pinned: bool,
+) -> Result<Application, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = require_auth_csrf(&pool).await?;
+        let app =
+            crate::server::content_write_queries::set_application_pinned_query(&pool, id, pinned)
+                .await?;
+        audit_content(
+            &pool,
+            info.user_id,
+            "content_mutate",
+            &format!("application:pin:{}", app.id),
+        )
+        .await;
+        Ok(app)
     }
     #[cfg(not(feature = "ssr"))]
     {

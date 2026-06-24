@@ -5,7 +5,8 @@ use leptos::server_fn::ServerFnError;
 use uuid::Uuid;
 
 use crate::domain::{
-    Bookmark, CategoryWithItems, DashboardView, SearchProviderConfig, Service, ServiceFilter,
+    Application, Bookmark, CategoryWithItems, DashboardView, SearchProviderConfig, Service,
+    ServiceFilter,
 };
 use crate::error::AppError;
 
@@ -83,6 +84,34 @@ pub async fn list_services(filter: ServiceFilter) -> Result<Vec<Service>, Server
             .await
             .map_err(AppError::from)
             .map_err(ServerFnError::from)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = filter;
+        Err(ServerFnError::from(AppError::Internal))
+    }
+}
+
+#[leptos::server]
+pub async fn list_applications(
+    filter: ServiceFilter,
+) -> Result<Vec<Application>, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let vis_filter = visibility_for_caller(&pool).await;
+        crate::server::content_queries::list_applications_query(
+            &pool,
+            filter.category_id,
+            vis_filter,
+        )
+        .await
+        .map_err(AppError::from)
+        .map_err(ServerFnError::from)
     }
     #[cfg(not(feature = "ssr"))]
     {

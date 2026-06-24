@@ -7,8 +7,9 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use app::domain::{
-    Bookmark, BookmarkInput, BookmarkPatch, Category, CategoryInput, CategoryPatch,
-    CategoryWithItems, DashboardView, Service, ServiceInput, ServicePatch, VisibilityFilter,
+    Application, ApplicationInput, ApplicationPatch, Bookmark, BookmarkInput, BookmarkPatch,
+    Category, CategoryInput, CategoryPatch, CategoryWithItems, DashboardView, Service,
+    ServiceInput, ServicePatch, VisibilityFilter,
 };
 
 /// Repository trait — abstracts data access for future Postgres swap.
@@ -36,6 +37,13 @@ pub trait Repository: Send + Sync {
         category_id: Option<Uuid>,
         filter: VisibilityFilter,
     ) -> Result<Vec<Service>, sqlx::Error>;
+
+    /// List applications with optional category filter.
+    async fn list_applications(
+        &self,
+        category_id: Option<Uuid>,
+        filter: VisibilityFilter,
+    ) -> Result<Vec<Application>, sqlx::Error>;
 
     /// List bookmarks optionally filtered by category.
     async fn list_bookmarks(
@@ -89,6 +97,36 @@ pub trait Repository: Send + Sync {
         id: Uuid,
         pinned: bool,
     ) -> Result<Service, app::error::AppError>;
+
+    /// Create an application with generated UUIDv7 and auto order_index.
+    async fn create_application(
+        &self,
+        input: ApplicationInput,
+    ) -> Result<Application, app::error::AppError>;
+
+    /// Update an application by applying a partial patch.
+    async fn update_application(
+        &self,
+        id: Uuid,
+        patch: ApplicationPatch,
+    ) -> Result<Application, app::error::AppError>;
+
+    /// Delete an application.
+    async fn delete_application(&self, id: Uuid) -> Result<(), app::error::AppError>;
+
+    /// Reorder applications by updating order_index for each id in the given list.
+    async fn reorder_applications(
+        &self,
+        category: Option<Uuid>,
+        order: Vec<Uuid>,
+    ) -> Result<(), app::error::AppError>;
+
+    /// Toggle an application pinned state.
+    async fn set_application_pinned(
+        &self,
+        id: Uuid,
+        pinned: bool,
+    ) -> Result<Application, app::error::AppError>;
 
     /// Create a bookmark with generated UUIDv7 and auto order_index.
     async fn create_bookmark(&self, input: BookmarkInput)
@@ -164,6 +202,14 @@ impl Repository for SqliteRepository {
         app::server::content_queries::list_services_query(&self.pool, category_id, filter).await
     }
 
+    async fn list_applications(
+        &self,
+        category_id: Option<Uuid>,
+        filter: VisibilityFilter,
+    ) -> Result<Vec<Application>, sqlx::Error> {
+        app::server::content_queries::list_applications_query(&self.pool, category_id, filter).await
+    }
+
     async fn list_bookmarks(
         &self,
         category_id: Option<Uuid>,
@@ -228,6 +274,43 @@ impl Repository for SqliteRepository {
         pinned: bool,
     ) -> Result<Service, app::error::AppError> {
         app::server::content_write_queries::set_service_pinned_query(&self.pool, id, pinned).await
+    }
+
+    async fn create_application(
+        &self,
+        input: ApplicationInput,
+    ) -> Result<Application, app::error::AppError> {
+        app::server::content_write_queries::create_application_query(&self.pool, input).await
+    }
+
+    async fn update_application(
+        &self,
+        id: Uuid,
+        patch: ApplicationPatch,
+    ) -> Result<Application, app::error::AppError> {
+        app::server::content_write_queries::update_application_query(&self.pool, id, patch).await
+    }
+
+    async fn delete_application(&self, id: Uuid) -> Result<(), app::error::AppError> {
+        app::server::content_write_queries::delete_application_query(&self.pool, id).await
+    }
+
+    async fn reorder_applications(
+        &self,
+        category: Option<Uuid>,
+        order: Vec<Uuid>,
+    ) -> Result<(), app::error::AppError> {
+        app::server::content_write_queries::reorder_applications_query(&self.pool, category, order)
+            .await
+    }
+
+    async fn set_application_pinned(
+        &self,
+        id: Uuid,
+        pinned: bool,
+    ) -> Result<Application, app::error::AppError> {
+        app::server::content_write_queries::set_application_pinned_query(&self.pool, id, pinned)
+            .await
     }
 
     async fn create_bookmark(

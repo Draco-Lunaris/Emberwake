@@ -80,6 +80,22 @@ pub struct Service {
     pub updated_at: String,
 }
 
+/// A launchable tile (no monitoring).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Application {
+    pub id: Uuid,
+    pub category_id: Option<Uuid>,
+    pub name: String,
+    pub url: String,
+    pub icon: Option<String>,
+    pub description: Option<String>,
+    pub is_pinned: bool,
+    pub order_index: i64,
+    pub visibility: Visibility,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 /// A bookmark link.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
@@ -106,6 +122,8 @@ pub struct CategoryWithBookmarks {
 pub struct DashboardView {
     pub pinned_services: Vec<Service>,
     pub pinned_categories: Vec<CategoryWithBookmarks>,
+    #[serde(default)]
+    pub applications: Vec<Application>,
 }
 
 /// Filter for service queries.
@@ -214,6 +232,37 @@ pub struct ServicePatch {
     pub monitor_kind: Option<String>,
     pub monitor_target: Option<String>,
     pub monitor_interval_s: Option<Option<i64>>,
+}
+
+/// Input for creating an application.
+#[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
+pub struct ApplicationInput {
+    #[garde(skip)]
+    pub category_id: Option<Uuid>,
+    #[garde(length(min = 1))]
+    pub name: String,
+    #[garde(url)]
+    pub url: String,
+    #[garde(skip)]
+    pub icon: Option<String>,
+    #[garde(skip)]
+    pub description: Option<String>,
+    #[garde(skip)]
+    pub is_pinned: bool,
+    #[garde(skip)]
+    pub visibility: Visibility,
+}
+
+/// Patch for updating an application (all fields optional; None = no change).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ApplicationPatch {
+    pub category_id: Option<Option<Uuid>>,
+    pub name: Option<String>,
+    pub url: Option<String>,
+    pub icon: Option<String>,
+    pub description: Option<Option<String>>,
+    pub is_pinned: Option<bool>,
+    pub visibility: Option<Visibility>,
 }
 
 /// Input for creating a bookmark.

@@ -6,11 +6,13 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::domain::{
-    Bookmark, BookmarkInput, BookmarkPatch, Category, CategoryInput, CategoryPatch, Service,
-    ServiceInput, ServicePatch,
+    Application, ApplicationInput, ApplicationPatch, Bookmark, BookmarkInput, BookmarkPatch,
+    Category, CategoryInput, CategoryPatch, Service, ServiceInput, ServicePatch,
 };
 use crate::error::AppError;
-use crate::server::content_queries::{row_to_bookmark, row_to_category, row_to_service};
+use crate::server::content_queries::{
+    row_to_application, row_to_bookmark, row_to_category, row_to_service,
+};
 
 fn now_rfc3339() -> String {
     Utc::now().to_rfc3339()
@@ -328,6 +330,180 @@ pub async fn set_service_pinned_query(
     .await?;
 
     Ok(row_to_service(&row))
+}
+
+// --- Application ---
+
+pub async fn create_application_query(
+    pool: &SqlitePool,
+    input: ApplicationInput,
+) -> Result<Application, AppError> {
+    let id = new_uuid_v7();
+    let now = now_rfc3339();
+
+    let max_row: (Option<i64>,) = sqlx::query_as("SELECT MAX(order_index) FROM application")
+        .fetch_one(pool)
+        .await?;
+    let order_index = max_row.0.unwrap_or(-1) + 1;
+
+    let cat_id = input.category_id.map(|u| u.to_string());
+
+    sqlx::query(
+        "INSERT INTO application (id, category_id, name, url, icon, description, is_pinned, \
+         order_index, visibility, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&cat_id)
+    .bind(&input.name)
+    .bind(&input.url)
+    .bind(&input.icon)
+    .bind(&input.description)
+    .bind(input.is_pinned as i64)
+    .bind(order_index)
+    .bind(input.visibility.to_string())
+    .bind(&now)
+    .bind(&now)
+    .execute(pool)
+    .await?;
+
+    let row = sqlx::query(
+        "SELECT id, category_id, name, url, icon, description, is_pinned, \
+         order_index, visibility, created_at, updated_at \
+         FROM application WHERE id = ?",
+    )
+    .bind(&id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(row_to_application(&row))
+}
+
+pub async fn update_application_query(
+    pool: &SqlitePool,
+    id: Uuid,
+    patch: ApplicationPatch,
+) -> Result<Application, AppError> {
+    let id_str = id.to_string();
+    let now = now_rfc3339();
+
+    let row = sqlx::query(
+        "SELECT id, category_id, name, url, icon, description, is_pinned, \
+         order_index, visibility, created_at, updated_at \
+         FROM application WHERE id = ?",
+    )
+    .bind(&id_str)
+    .fetch_optional(pool)
+    .await?;
+
+    let row = match row {
+        Some(r) => r,
+        None => return Err(AppError::NotFound),
+    };
+
+    let current = row_to_application(&row);
+
+    let category_id = match patch.category_id {
+        Some(opt) => opt.map(|u| u.to_string()),
+        None => current.category_id.map(|u| u.to_string()),
+    };
+    let name = patch.name.unwrap_or(current.name);
+    let url = patch.url.unwrap_or(current.url);
+    let icon = patch.icon.or(current.icon);
+    let description = match patch.description {
+        Some(opt) => opt,
+        None => current.description,
+    };
+    let is_pinned = patch.is_pinned.unwrap_or(current.is_pinned);
+    let visibility = patch.visibility.unwrap_or(current.visibility);
+
+    sqlx::query(
+        "UPDATE application SET category_id = ?, name = ?, url = ?, icon = ?, description = ?, \
+         is_pinned = ?, visibility = ?, updated_at = ? WHERE id = ?",
+    )
+    .bind(&category_id)
+    .bind(&name)
+    .bind(&url)
+    .bind(&icon)
+    .bind(&description)
+    .bind(is_pinned as i64)
+    .bind(visibility.to_string())
+    .bind(&now)
+    .bind(&id_str)
+    .execute(pool)
+    .await?;
+
+    let row = sqlx::query(
+        "SELECT id, category_id, name, url, icon, description, is_pinned, \
+         order_index, visibility, created_at, updated_at \
+         FROM application WHERE id = ?",
+    )
+    .bind(&id_str)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(row_to_application(&row))
+}
+
+pub async fn delete_application_query(pool: &SqlitePool, id: Uuid) -> Result<(), AppError> {
+    let id_str = id.to_string();
+    let result = sqlx::query("DELETE FROM application WHERE id = ?")
+        .bind(&id_str)
+        .execute(pool)
+        .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
+    Ok(())
+}
+
+pub async fn reorder_applications_query(
+    pool: &SqlitePool,
+    _category: Option<Uuid>,
+    order: Vec<Uuid>,
+) -> Result<(), AppError> {
+    let now = now_rfc3339();
+    for (idx, id) in order.iter().enumerate() {
+        sqlx::query("UPDATE application SET order_index = ?, updated_at = ? WHERE id = ?")
+            .bind(idx as i64)
+            .bind(&now)
+            .bind(id.to_string())
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
+pub async fn set_application_pinned_query(
+    pool: &SqlitePool,
+    id: Uuid,
+    pinned: bool,
+) -> Result<Application, AppError> {
+    let id_str = id.to_string();
+    let now = now_rfc3339();
+
+    let result = sqlx::query("UPDATE application SET is_pinned = ?, updated_at = ? WHERE id = ?")
+        .bind(pinned as i64)
+        .bind(&now)
+        .bind(&id_str)
+        .execute(pool)
+        .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let row = sqlx::query(
+        "SELECT id, category_id, name, url, icon, description, is_pinned, \
+         order_index, visibility, created_at, updated_at \
+         FROM application WHERE id = ?",
+    )
+    .bind(&id_str)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(row_to_application(&row))
 }
 
 // --- Bookmark ---
