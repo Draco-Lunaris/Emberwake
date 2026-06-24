@@ -102,13 +102,50 @@ echo "CRUD create avg: $(echo "${CRUD_TIMES}" | tr ' ' '\n' | grep -v '^$' | awk
 echo "CRUD create p95: $(echo "${CRUD_TIMES}" | tr ' ' '\n' | grep -v '^$' | sort -n | awk 'NR==47 || NR==48 {print; exit}')s"
 echo
 
-echo "--- Step 6: Measure idle RSS (SC-003) ---"
+echo "--- Step 6: Measure idle RSS + cold start (SC-003) ---"
 if command -v pidof >/dev/null 2>&1; then
   PID=$(pidof emberwake 2>/dev/null || echo "")
   if [ -n "$PID" ]; then
     RSS=$(grep VmRSS /proc/$PID/status 2>/dev/null | awk '{print $2}')
     echo "Idle RSS: ${RSS} kB ($(echo "scale=1; ${RSS}/1024" | bc 2>/dev/null || echo "N/A") MB)"
   fi
+fi
+
+# Cold start: measure time to /readyz from a fresh server start.
+# Requires the server binary at target/release/emberwake.
+# To measure cold start, stop the running server and run:
+#   COLD_START=1 ./benches/seed_benchmark.sh
+if [ "${COLD_START:-0}" = "1" ]; then
+  echo "Measuring cold start time..."
+  BINARY=$(find target/release -name emberwake -type f 2>/dev/null | head -1)
+  if [ -n "$BINARY" ]; then
+    COLD_START_TIMES=""
+    for i in $(seq 1 5); do
+      START_TIME=$(date +%s%N)
+      "$BINARY" &
+      SERVER_PID=$!
+      for j in $(seq 1 50); do
+        if curl -sf "${BASE_URL}/readyz" >/dev/null 2>&1; then
+          break
+        fi
+        sleep 0.1
+      done
+      END_TIME=$(date +%s%N)
+      ELAPSED=$(echo "scale=3; (${END_TIME} - ${START_TIME}) / 1000000000" | bc 2>/dev/null || echo "0")
+      COLD_START_TIMES="${COLD_START_TIMES} ${ELAPSED}"
+      kill "$SERVER_PID" 2>/dev/null || true
+      wait "$SERVER_PID" 2>/dev/null || true
+      sleep 1
+    done
+    echo "Cold start times (seconds): ${COLD_START_TIMES}"
+    echo "Cold start avg: $(echo "${COLD_START_TIMES}" | tr ' ' '\n' | grep -v '^$' | awk '{s+=$1; n++} END {printf "%.3f\n", s/n}')s"
+    echo "Budget: < 1.5s"
+  else
+    echo "Server binary not found at target/release/emberwake — skipping cold start."
+  fi
+else
+  echo "Cold start: skipped (set COLD_START=1 to measure)"
+  echo "To measure: stop server, run COLD_START=1 ./benches/seed_benchmark.sh"
 fi
 echo
 
