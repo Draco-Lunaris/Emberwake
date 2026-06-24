@@ -42,9 +42,9 @@ impl Drop for OtlpGuard {
 /// The `endpoint` should point to an OTLP/HTTP collector (e.g. `http://localhost:4318/v1/traces`).
 pub fn init_otlp(endpoint: &str) -> OtlpGuard {
     use opentelemetry::global;
+    use opentelemetry_otlp::{SpanExporter, WithExportConfig};
     use opentelemetry_sdk::runtime::Tokio;
     use opentelemetry_sdk::trace::{BatchSpanProcessor, TracerProvider};
-    use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 
     let exporter = SpanExporter::builder()
         .with_http()

@@ -141,7 +141,9 @@ async fn main() {
             move || shell(shell_options.clone())
         })
         .fallback(file_and_error_handler::<server::state::AppState, _>(shell))
-        .layer(server::security::headers::hsts_layer(config.security.hsts_max_age))
+        .layer(server::security::headers::hsts_layer(
+            config.security.hsts_max_age,
+        ))
         .layer(server::security::headers::nosniff_layer())
         .layer(server::security::headers::frame_deny_layer())
         .layer(server::security::headers::referrer_policy_layer())

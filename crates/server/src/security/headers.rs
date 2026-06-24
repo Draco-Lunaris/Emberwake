@@ -8,10 +8,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 /// Apply all security header layers (HSTS, nosniff, frame-deny, referrer-policy) to a router.
 /// This is the single source of truth used by both `main.rs` and tests — no mock duplication.
 /// CSP with nonce is handled separately by Leptos Meta tags during SSR.
-pub fn apply_security_headers<S>(
-    router: axum::Router<S>,
-    hsts_max_age: u64,
-) -> axum::Router<S>
+pub fn apply_security_headers<S>(router: axum::Router<S>, hsts_max_age: u64) -> axum::Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
