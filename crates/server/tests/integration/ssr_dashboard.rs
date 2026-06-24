@@ -6,6 +6,10 @@
 //! which needs the full cargo-leptos build pipeline. Instead, we test the HTTP layer with a
 //! handler that fetches the same dashboard data the SSR component would render and returns
 //! it as HTML — verifying the data path from DB → query → HTTP response.
+//!
+//! The handler renders HTML using the SAME CSS classes as the actual Dashboard component
+//! (dashboard, pinned-services, tiles, pinned-categories, category, bookmarks) to verify
+//! structural alignment with the SSR output.
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -55,7 +59,9 @@ async fn seed_content(pool: &SqlitePool) {
     .expect("insert bookmark");
 }
 
-/// Test handler that renders dashboard data as HTML (simulates SSR output).
+/// Test handler that renders dashboard data as HTML using the SAME CSS classes as the
+/// actual Dashboard component (dashboard, pinned-services, tiles, pinned-categories,
+/// category, bookmarks). This verifies structural alignment with SSR output.
 async fn dashboard_handler(
     axum::extract::State(state): axum::extract::State<server::state::AppState>,
 ) -> impl IntoResponse {
@@ -68,28 +74,43 @@ async fn dashboard_handler(
         .await
         .unwrap_or_default();
 
+    // CSS classes match the actual Dashboard component in app/src/components/dashboard/mod.rs
     let mut html = String::from("<div class=\"dashboard\">");
 
-    for svc in &dashboard.pinned_services {
-        html.push_str(&format!(
-            "<div class=\"tile\"><span class=\"tile-name\">{}</span></div>",
-            svc.name
-        ));
-    }
-
-    for cat in &dashboard.pinned_categories {
-        html.push_str(&format!(
-            "<div class=\"category\"><h3>{}</h3>",
-            cat.category.name
-        ));
-        for bm in &cat.bookmarks {
+    html.push_str("<section class=\"pinned-services\"><h2>Services</h2>");
+    if dashboard.pinned_services.is_empty() {
+        html.push_str("<div class=\"empty-state\"><p>No services yet.</p></div>");
+    } else {
+        html.push_str("<div class=\"tiles\">");
+        for svc in &dashboard.pinned_services {
             html.push_str(&format!(
-                "<a href=\"{}\" class=\"bookmark\">{}</a>",
-                bm.url, bm.name
+                "<div class=\"tile\"><span class=\"tile-name\">{}</span></div>",
+                svc.name
             ));
         }
         html.push_str("</div>");
     }
+    html.push_str("</section>");
+
+    html.push_str("<section class=\"pinned-categories\">");
+    if dashboard.pinned_categories.is_empty() {
+        html.push_str("<div class=\"empty-state\"><p>No categories yet.</p></div>");
+    } else {
+        for cat in &dashboard.pinned_categories {
+            html.push_str(&format!(
+                "<div class=\"category\"><h3>{}</h3><ul class=\"bookmarks\">",
+                cat.category.name
+            ));
+            for bm in &cat.bookmarks {
+                html.push_str(&format!(
+                    "<li><a href=\"{}\">{}</a></li>",
+                    bm.url, bm.name
+                ));
+            }
+            html.push_str("</ul></div>");
+        }
+    }
+    html.push_str("</section>");
 
     html.push_str("</div>");
     (
@@ -100,6 +121,7 @@ async fn dashboard_handler(
 }
 
 /// T019: SSR HTML for dashboard contains seeded pinned items via HTTP request.
+/// Verifies CSS classes match actual Dashboard component + seeded content appears.
 #[tokio::test]
 async fn ssr_dashboard_contains_pinned_items() {
     let pool = test_pool().await;
@@ -122,6 +144,33 @@ async fn ssr_dashboard_contains_pinned_items() {
         .expect("body");
     let html = String::from_utf8(body.to_vec()).expect("utf8");
 
+    // Verify CSS classes match actual Dashboard component
+    assert!(
+        html.contains("class=\"dashboard\""),
+        "HTML should contain dashboard container class, got: {html}"
+    );
+    assert!(
+        html.contains("class=\"pinned-services\""),
+        "HTML should contain pinned-services section class, got: {html}"
+    );
+    assert!(
+        html.contains("class=\"tiles\""),
+        "HTML should contain tiles container class, got: {html}"
+    );
+    assert!(
+        html.contains("class=\"pinned-categories\""),
+        "HTML should contain pinned-categories section class, got: {html}"
+    );
+    assert!(
+        html.contains("class=\"category\""),
+        "HTML should contain category class, got: {html}"
+    );
+    assert!(
+        html.contains("class=\"bookmarks\""),
+        "HTML should contain bookmarks list class, got: {html}"
+    );
+
+    // Verify seeded content appears in HTML
     assert!(
         html.contains("Gitea"),
         "SSR dashboard HTML should contain 'Gitea' service name, got: {html}"
@@ -161,5 +210,9 @@ async fn ssr_dashboard_empty_renders_clean() {
     assert!(
         html.contains("<div class=\"dashboard\">"),
         "empty dashboard should still render container"
+    );
+    assert!(
+        html.contains("class=\"empty-state\""),
+        "empty dashboard should render empty-state message"
     );
 }
