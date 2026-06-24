@@ -140,6 +140,9 @@ pub async fn complete_setup_query(
 
 const SESSION_IDLE_TIMEOUT_MINUTES: i64 = 30;
 const SESSION_ABSOLUTE_TIMEOUT_HOURS: i64 = 24;
+/// Session token rotation interval in minutes. Tokens are rotated when
+/// last_used_at is older than this interval.
+const SESSION_ROTATION_INTERVAL_MINUTES: i64 = 30;
 
 /// Create a new session for a user. Returns (session_token, csrf_token).
 pub async fn create_session(
@@ -178,6 +181,9 @@ pub struct SessionInfo {
     pub role: Role,
     pub username: String,
     pub csrf_token: String,
+    /// If the session token was rotated, this contains the new token.
+    /// Callers should update the session cookie with this new token.
+    pub rotated_token: Option<String>,
 }
 
 /// Look up a session by token. Checks expiry and updates last_used_at.
@@ -222,8 +228,39 @@ pub async fn lookup_session(
 
     let last_used_at: String = row.get("last_used_at");
     let now_dt = Utc::now();
-    let last_used = chrono::DateTime::parse_from_rfc3339(&last_used_at).unwrap_or(now_dt.into());
-    if (now_dt - last_used.with_timezone(&Utc)).num_minutes() > SESSION_IDLE_TIMEOUT_MINUTES {
+    let last_used_dt = chrono::DateTime::parse_from_rfc3339(&last_used_at).unwrap_or(now_dt.into());
+    let elapsed_minutes = (now_dt - last_used_dt.with_timezone(&Utc)).num_minutes();
+
+    // Check if session token should be rotated BEFORE idle timeout check.
+    // Rotation updates last_used_at to now, which prevents idle timeout from firing
+    // on the same lookup. This ensures active sessions get their tokens rotated
+    // without being incorrectly expired.
+    if elapsed_minutes >= SESSION_ROTATION_INTERVAL_MINUTES {
+        // Generate a new token, update the session row, invalidate the old token.
+        let new_token = random_token();
+        let now_rfc = Utc::now().to_rfc3339();
+        let result = sqlx::query("UPDATE sessions SET id = ?, last_used_at = ? WHERE id = ?")
+            .bind(&new_token)
+            .bind(&now_rfc)
+            .bind(token)
+            .execute(pool)
+            .await;
+
+        if result.is_ok() {
+            return Ok(Some(SessionInfo {
+                session_id: new_token.clone(),
+                user_id: Uuid::from_str(row.get::<String, _>("user_id").as_str())
+                    .unwrap_or_default(),
+                role: row.get::<String, _>("role").parse().unwrap_or_default(),
+                username: row.get("username"),
+                csrf_token: row.get("csrf_token"),
+                rotated_token: Some(new_token),
+            }));
+        }
+    }
+
+    // Idle timeout check — after rotation check so rotated sessions survive.
+    if elapsed_minutes > SESSION_IDLE_TIMEOUT_MINUTES {
         let _ = sqlx::query("DELETE FROM sessions WHERE id = ?")
             .bind(token)
             .execute(pool)
@@ -231,6 +268,7 @@ pub async fn lookup_session(
         return Ok(None);
     }
 
+    // Update last_used_at for non-rotated, non-expired sessions.
     let _ = sqlx::query("UPDATE sessions SET last_used_at = ? WHERE id = ?")
         .bind(&now)
         .bind(token)
@@ -243,6 +281,7 @@ pub async fn lookup_session(
         role: row.get::<String, _>("role").parse().unwrap_or_default(),
         username: row.get("username"),
         csrf_token: row.get("csrf_token"),
+        rotated_token: None,
     }))
 }
 

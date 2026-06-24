@@ -100,3 +100,76 @@ fn csrf_session_integrated_missing_token_rejected() {
         );
     });
 }
+
+/// T037: Origin/Referer validation for CSRF prevention.
+/// Tests validate_origin directly — the function used by require_session_csrf.
+use axum::http::HeaderMap;
+
+#[test]
+fn origin_validation_correct_origin_accepted() {
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "localhost:5005".parse().unwrap());
+    headers.insert("origin", "http://localhost:5005".parse().unwrap());
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(result.is_ok(), "same-origin request should be accepted");
+}
+
+#[test]
+fn origin_validation_wrong_origin_rejected() {
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "localhost:5005".parse().unwrap());
+    headers.insert("origin", "http://evil.example.com".parse().unwrap());
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(
+        matches!(result, Err(app::error::AppError::Forbidden)),
+        "cross-origin request should be rejected with Forbidden"
+    );
+}
+
+#[test]
+fn origin_validation_both_missing_rejected() {
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "localhost:5005".parse().unwrap());
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(
+        matches!(result, Err(app::error::AppError::Forbidden)),
+        "both Origin and Referer missing should be rejected (fail-closed)"
+    );
+}
+
+#[test]
+fn origin_validation_referer_fallback_accepted() {
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "localhost:5005".parse().unwrap());
+    headers.insert("referer", "http://localhost:5005/settings".parse().unwrap());
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(
+        result.is_ok(),
+        "Referer fallback with matching host should be accepted"
+    );
+}
+
+#[test]
+fn origin_validation_referer_fallback_wrong_host_rejected() {
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "localhost:5005".parse().unwrap());
+    headers.insert("referer", "http://evil.example.com/attack".parse().unwrap());
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(
+        matches!(result, Err(app::error::AppError::Forbidden)),
+        "Referer with wrong host should be rejected"
+    );
+}
+
+#[test]
+fn origin_validation_origin_takes_precedence_over_referer() {
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "localhost:5005".parse().unwrap());
+    headers.insert("origin", "http://localhost:5005".parse().unwrap());
+    headers.insert("referer", "http://evil.example.com".parse().unwrap());
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(
+        result.is_ok(),
+        "correct Origin should take precedence over wrong Referer"
+    );
+}

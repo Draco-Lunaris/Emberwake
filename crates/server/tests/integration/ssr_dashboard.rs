@@ -102,10 +102,7 @@ async fn dashboard_handler(
                 cat.category.name
             ));
             for bm in &cat.bookmarks {
-                html.push_str(&format!(
-                    "<li><a href=\"{}\">{}</a></li>",
-                    bm.url, bm.name
-                ));
+                html.push_str(&format!("<li><a href=\"{}\">{}</a></li>", bm.url, bm.name));
             }
             html.push_str("</ul></div>");
         }

@@ -179,16 +179,14 @@ async fn search_provider_wiring(pool: SqlitePool) {
         .expect("get_search_providers_query should succeed");
 
     // Verify provider fields
-    assert_eq!(
-        config.providers.len(),
-        1,
-        "should return 1 search provider"
-    );
+    assert_eq!(config.providers.len(), 1, "should return 1 search provider");
     assert_eq!(config.providers[0].prefix, "g", "prefix should be 'g'");
-    assert_eq!(config.providers[0].name, "Google", "name should be 'Google'");
     assert_eq!(
-        config.providers[0].url_template,
-        "https://google.com/search?q={q}",
+        config.providers[0].name, "Google",
+        "name should be 'Google'"
+    );
+    assert_eq!(
+        config.providers[0].url_template, "https://google.com/search?q={q}",
         "url_template should match"
     );
     assert_eq!(
