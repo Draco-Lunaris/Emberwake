@@ -9,8 +9,6 @@ use std::sync::Arc;
 use app::App;
 use leptos::prelude::*;
 use leptos_axum::{LeptosRoutes, file_and_error_handler, generate_route_list};
-use tower_http::set_header::SetResponseHeaderLayer;
-
 use server::security::rate_limit;
 use server::{audit, config, db, integrations, monitor, sse, state::AppState, telemetry};
 
@@ -44,11 +42,13 @@ async fn main() {
 
     telemetry::init_tracing(&config.telemetry.log_level);
     telemetry::register_request_counter();
-    if config.telemetry.otlp_enabled
+    let _otlp_guard = if config.telemetry.otlp_enabled
         && let Some(ref endpoint) = config.telemetry.otlp_endpoint
     {
-        telemetry::init_otlp(endpoint);
-    }
+        Some(telemetry::init_otlp(endpoint))
+    } else {
+        None
+    };
     tracing::info!("Starting Emberwake server");
 
     config::ensure_db_dir(&config.db_path).expect("failed to create db directory");
@@ -141,26 +141,10 @@ async fn main() {
             move || shell(shell_options.clone())
         })
         .fallback(file_and_error_handler::<server::state::AppState, _>(shell))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("strict-transport-security"),
-            axum::http::HeaderValue::from_str(&format!(
-                "max-age={}; includeSubDomains",
-                config.security.hsts_max_age
-            ))
-            .expect("valid HSTS header"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("x-content-type-options"),
-            axum::http::HeaderValue::from_static("nosniff"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("x-frame-options"),
-            axum::http::HeaderValue::from_static("DENY"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("referrer-policy"),
-            axum::http::HeaderValue::from_static("no-referrer"),
-        ))
+        .layer(server::security::headers::hsts_layer(config.security.hsts_max_age))
+        .layer(server::security::headers::nosniff_layer())
+        .layer(server::security::headers::frame_deny_layer())
+        .layer(server::security::headers::referrer_policy_layer())
         .layer(axum::Extension(pool.clone()))
         .layer(axum::Extension(app::server::extended_auth::ServerKey(
             server_key,

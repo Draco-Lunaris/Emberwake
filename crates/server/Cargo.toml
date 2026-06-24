@@ -53,6 +53,9 @@ tokio-stream = { workspace = true }
 bollard = { workspace = true }
 kube = { workspace = true }
 k8s-openapi = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-otlp = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

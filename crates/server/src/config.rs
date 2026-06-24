@@ -132,9 +132,8 @@ fn default_backup_dir() -> String {
 
 /// Telemetry configuration.
 ///
-/// OTLP trace export is a v1 limitation — the `otlp_endpoint` field is accepted
-/// for forward compatibility but trace export is not yet wired. Set `otlp_enabled`
-/// to `true` to log the configured endpoint at startup; it defaults to `false`.
+/// OTLP trace export is enabled when `otlp_enabled` is true and `otlp_endpoint` is set.
+/// The endpoint should point to an OTLP/HTTP collector (e.g. `http://localhost:4318/v1/traces`).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TelemetryConfig {
     #[serde(default = "default_log_level")]

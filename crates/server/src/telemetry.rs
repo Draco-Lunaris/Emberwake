@@ -25,16 +25,44 @@ pub fn init_tracing(log_level: &str) {
         .init();
 }
 
-/// Initialize OTLP exporter if enabled.
+/// Guard that flushes and shuts down the OTLP tracer provider on drop.
+/// Must be held for the lifetime of the process.
+pub struct OtlpGuard;
+
+impl Drop for OtlpGuard {
+    fn drop(&mut self) {
+        opentelemetry::global::shutdown_tracer_provider();
+    }
+}
+
+/// Initialize OTLP trace export via HTTP.
 ///
-/// OTLP trace export is a documented v1 limitation. When `otlp_enabled` is true
-/// the configured endpoint is logged at info level. Trace export itself is not
-/// yet wired — the `opentelemetry-otlp` crate is not a dependency. This function
-/// is a clean no-op that avoids misleading warnings.
-pub fn init_otlp(endpoint: &str) {
-    tracing::info!(
-        "OTLP endpoint configured: {endpoint} (trace export not yet wired — v1 limitation)"
-    );
+/// Creates a real OTLP HTTP exporter with a batch span processor, installs it
+/// as the global tracer provider, and returns a guard that flushes on drop.
+/// The `endpoint` should point to an OTLP/HTTP collector (e.g. `http://localhost:4318/v1/traces`).
+pub fn init_otlp(endpoint: &str) -> OtlpGuard {
+    use opentelemetry::global;
+    use opentelemetry_sdk::runtime::Tokio;
+    use opentelemetry_sdk::trace::{BatchSpanProcessor, TracerProvider};
+    use opentelemetry_otlp::{SpanExporter, WithExportConfig};
+
+    let exporter = SpanExporter::builder()
+        .with_http()
+        .with_endpoint(endpoint)
+        .build()
+        .unwrap_or_else(|e| panic!("failed to create OTLP exporter for {endpoint}: {e}"));
+
+    let processor = BatchSpanProcessor::builder(exporter, Tokio).build();
+
+    let provider = TracerProvider::builder()
+        .with_span_processor(processor)
+        .build();
+
+    global::set_tracer_provider(provider);
+
+    tracing::info!("OTLP trace export initialized: {endpoint}");
+
+    OtlpGuard
 }
 
 /// Register a request counter metric with the Prometheus default registry.

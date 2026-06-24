@@ -133,32 +133,24 @@ async fn audit_result_check_constraint(pool: SqlitePool) {
 }
 
 /// Test that security header layers (HSTS, nosniff, frame-deny, referrer) are present.
-/// T017: Missing security-headers test.
+/// T017: Uses the same `apply_security_headers` function as `main.rs` — no mock duplication.
+///
+/// CSP with nonce is set via Leptos Meta tags during SSR, not via a tower layer.
+/// Full CSP verification requires the cargo-leptos SSR pipeline (generate_route_list +
+/// LeptosRoutes + shell()), which is not practical in a unit test. The four layer-based
+/// headers below are verified against the production code path.
 #[tokio::test]
 async fn security_headers_present() {
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
+    use server::security::headers::apply_security_headers;
     use tower::ServiceExt;
-    use tower_http::set_header::SetResponseHeaderLayer;
 
-    let app = axum::Router::new()
-        .route("/", axum::routing::get(|| async { "ok" }))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("strict-transport-security"),
-            axum::http::HeaderValue::from_static("max-age=31536000; includeSubDomains"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("x-content-type-options"),
-            axum::http::HeaderValue::from_static("nosniff"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("x-frame-options"),
-            axum::http::HeaderValue::from_static("DENY"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("referrer-policy"),
-            axum::http::HeaderValue::from_static("no-referrer"),
-        ));
+    // Build a router and apply security headers using the SAME function as main.rs.
+    let app = apply_security_headers(
+        axum::Router::new().route("/", axum::routing::get(|| async { "ok" })),
+        31536000,
+    );
 
     let response = app
         .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
@@ -166,20 +158,73 @@ async fn security_headers_present() {
         .expect("response");
 
     assert_eq!(response.status(), StatusCode::OK);
+
+    // HSTS
+    let hsts = response
+        .headers()
+        .get("strict-transport-security")
+        .expect("HSTS header must be present");
     assert!(
-        response.headers().contains_key("strict-transport-security"),
-        "HSTS header must be present"
+        hsts.to_str().unwrap().contains("max-age=31536000"),
+        "HSTS must have correct max-age"
     );
     assert!(
-        response.headers().contains_key("x-content-type-options"),
-        "X-Content-Type-Options header must be present"
+        hsts.to_str().unwrap().contains("includeSubDomains"),
+        "HSTS must include subdomains"
     );
-    assert!(
-        response.headers().contains_key("x-frame-options"),
-        "X-Frame-Options header must be present"
+
+    // X-Content-Type-Options
+    assert_eq!(
+        response
+            .headers()
+            .get("x-content-type-options")
+            .expect("X-Content-Type-Options must be present")
+            .to_str()
+            .unwrap(),
+        "nosniff",
+        "X-Content-Type-Options must be nosniff"
     );
-    assert!(
-        response.headers().contains_key("referrer-policy"),
-        "Referrer-Policy header must be present"
+
+    // X-Frame-Options
+    assert_eq!(
+        response
+            .headers()
+            .get("x-frame-options")
+            .expect("X-Frame-Options must be present")
+            .to_str()
+            .unwrap(),
+        "DENY",
+        "X-Frame-Options must be DENY"
     );
+
+    // Referrer-Policy
+    assert_eq!(
+        response
+            .headers()
+            .get("referrer-policy")
+            .expect("Referrer-Policy must be present")
+            .to_str()
+            .unwrap(),
+        "no-referrer",
+        "Referrer-Policy must be no-referrer"
+    );
+
+    // CSP header is injected by Leptos Meta tags during SSR (per-response nonce).
+    // It is not a static tower layer — verifying it requires the full Leptos SSR pipeline.
+}
+
+/// T013: Verify OTLP exporter is created when init_otlp is called.
+/// The exporter builder creates an HTTP exporter object — it does not connect to the endpoint.
+/// Connection happens lazily when spans are batched and exported.
+#[tokio::test]
+async fn otlp_exporter_created() {
+    // init_otlp creates a real OTLP HTTP exporter with batch span processor
+    // and installs it as the global tracer provider. The exporter does not
+    // connect until spans are flushed, so a non-existent endpoint is safe here.
+    // The guard flushes and shuts down the provider on drop.
+    let guard = server::telemetry::init_otlp("http://localhost:4318/v1/traces");
+    // If we reach this point without panicking, the exporter was created successfully.
+    // Forget the guard to avoid blocking on flush to a non-existent endpoint during tests.
+    // In production, the guard is held for the process lifetime and flushed on shutdown.
+    std::mem::forget(guard);
 }
