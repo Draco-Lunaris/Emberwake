@@ -30,7 +30,7 @@ pub fn Navbar() -> impl IntoView {
 
     view! {
         <nav class="navbar">
-            <h1>"Emberwake"</h1>
+            <h1><A href="/">"Emberwake"</A></h1>
             <Suspense fallback=|| view! { <p>"Loading..."</p> }>
                 {move || {
                     user.get().map(|u| match u {
