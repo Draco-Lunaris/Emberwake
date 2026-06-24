@@ -24,7 +24,7 @@ tracing = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
-web-sys = { version = "0.3", features = ["Window", "Location", "EventSource", "MessageEvent", "Event", "Navigator", "CredentialsContainer", "CredentialCreationOptions", "Credential", "PublicKeyCredential", "AuthenticatorResponse", "AuthenticatorAttestationResponse"] }
+web-sys = { version = "0.3", features = ["Window", "Location", "EventSource", "MessageEvent", "Event", "Navigator", "CredentialsContainer", "CredentialCreationOptions", "Credential", "PublicKeyCredential", "AuthenticatorResponse", "AuthenticatorAttestationResponse", "Storage"] }
 wasm-bindgen = { version = "0.2", optional = true }
 webauthn-rs = { workspace = true, optional = true }
 scraper = { workspace = true, optional = true }

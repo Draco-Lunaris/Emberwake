@@ -583,6 +583,42 @@ section.pinned-categories {
     transform: translateX(2px);
 }
 
+/* ── Layout toggle ────────────────────────────────────────── */
+.layout-toggle {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: calc(var(--spacing) * 0.5);
+}
+
+.layout-toggle button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+.layout-toggle button:hover {
+    background: var(--accent-dim);
+    color: var(--text);
+}
+
+/* ── Layout modes for bookmarks ───────────────────────────── */
+.dashboard.layout-grid .bookmarks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 4px;
+}
+
+.dashboard.layout-list .bookmarks {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
 /* ── Empty state ─────────────────────────────────────────── */
 .empty-state {
     padding: calc(var(--spacing) * 2.5) var(--spacing);
