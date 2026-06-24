@@ -277,16 +277,135 @@ async fn disabled_docker_returns_empty_cache(pool: SqlitePool) {
     assert!(cache.get_k8s().is_empty());
 }
 
-/// T065: No mutating API calls are made (read-only verification by construction).
-/// The Docker integration module only uses list_containers, inspect_container,
-/// and events — no create/delete/start/stop/exec calls exist in the code.
-/// This test verifies the module compiles with only read-only calls.
+/// T065: Docker integration is read-only by construction — verified by source inspection.
+/// Reads the docker.rs source file and asserts that only read-only bollard methods
+/// (list_containers, inspect_container, events) are called. No mutating methods
+/// (create_container, delete_container, start, stop, kill, exec, restart) appear.
 #[test]
 fn docker_integration_is_read_only_by_construction() {
-    // Read-only is verified by code construction: the docker.rs module only calls
-    //   - Docker::list_containers (read)
-    //   - Docker::inspect_container (read)
-    //   - Docker::events (read stream)
-    // No mutating methods are called. Mutation is impossible by omission (Principle II).
-    // This test exists to document the constraint; the module compiles read-only.
+    use std::path::PathBuf;
+
+    // Locate docker.rs source relative to the test file.
+    // Test file: crates/server/tests/integration/discovery.rs
+    // Source:    crates/server/src/integrations/docker.rs
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("src");
+    path.push("integrations");
+    path.push("docker.rs");
+
+    let source = std::fs::read_to_string(&path)
+        .unwrap_or_else(|_| panic!("should read docker.rs source at {:?}", path));
+
+    // Verify read-only methods are present (the integration actually uses them).
+    assert!(
+        source.contains("list_containers"),
+        "docker.rs should call list_containers (read-only)"
+    );
+    assert!(
+        source.contains("inspect_container"),
+        "docker.rs should call inspect_container (read-only)"
+    );
+    assert!(
+        source.contains(".events("),
+        "docker.rs should call events (read-only stream)"
+    );
+
+    // Verify NO mutating methods are present.
+    let mutating_methods = [
+        "create_container",
+        "delete_container",
+        "remove_container",
+        "start_container",
+        "stop_container",
+        "kill_container",
+        "restart_container",
+        "exec_container",
+        "create_network",
+        "delete_network",
+        "create_volume",
+        "delete_volume",
+        "create_image",
+        "remove_image",
+        "prune_containers",
+        "prune_images",
+        "prune_networks",
+        "prune_volumes",
+    ];
+
+    for method in &mutating_methods {
+        assert!(
+            !source.contains(method),
+            "docker.rs must not call mutating method '{}' (read-only by construction)",
+            method
+        );
+    }
 }
+
+/// T065: Label parser handles multi-value URLs with whitespace padding.
+/// Verifies that comma-separated URLs with spaces are trimmed correctly.
+#[test]
+fn parse_labels_multi_value_url_with_whitespace() {
+    let mut labels = HashMap::new();
+    labels.insert("emberwake.name".to_string(), "Padded URLs".to_string());
+    labels.insert(
+        "emberwake.url".to_string(),
+        " https://a.example.com , https://b.example.com ".to_string(),
+    );
+
+    let services =
+        server::integrations::labels::parse_labels(&labels, DiscoverySource::Docker, "ws");
+    assert_eq!(services.len(), 2);
+    assert_eq!(services[0].url, "https://a.example.com");
+    assert_eq!(services[1].url, "https://b.example.com");
+}
+
+/// T065: Label parser skips empty entries in multi-value URL list.
+/// Verifies that "a,,b" produces 2 services, not 3 (empty entry is skipped).
+#[test]
+fn parse_labels_multi_value_url_skips_empty_entries() {
+    let mut labels = HashMap::new();
+    labels.insert("emberwake.name".to_string(), "Skip Empty".to_string());
+    labels.insert(
+        "emberwake.url".to_string(),
+        "https://a.com,,https://b.com".to_string(),
+    );
+
+    let services =
+        server::integrations::labels::parse_labels(&labels, DiscoverySource::Docker, "skip");
+    assert_eq!(services.len(), 2, "empty URL entries should be skipped");
+    assert_eq!(services[0].url, "https://a.com");
+    assert_eq!(services[1].url, "https://b.com");
+}
+
+/// T065: Label parser with only required fields (no optionals).
+/// Verifies that a service with only name + url is parsed correctly,
+/// with all optional fields set to None.
+#[test]
+fn parse_labels_only_required_fields() {
+    let mut labels = HashMap::new();
+    labels.insert("emberwake.name".to_string(), "Minimal".to_string());
+    labels.insert(
+        "emberwake.url".to_string(),
+        "https://minimal.example.com".to_string(),
+    );
+
+    let services =
+        server::integrations::labels::parse_labels(&labels, DiscoverySource::Docker, "min");
+    assert_eq!(services.len(), 1);
+    assert_eq!(services[0].name, "Minimal");
+    assert_eq!(services[0].url, "https://minimal.example.com");
+    assert!(services[0].icon.is_none());
+    assert!(services[0].category.is_none());
+    assert!(services[0].description.is_none());
+}
+
+// T065: Full Docker API mocking requires a mock Docker daemon.
+// The tests above verify:
+//   - Source-level read-only verification (no mutating bollard methods called)
+//   - Label parser edge cases (whitespace trimming, empty entries, minimal fields)
+//   - Cache + SSE integration (container start/stop events)
+//   - Disabled integration returns empty cache
+// A complete Docker API mock would require a mock HTTP server implementing the
+// Docker Engine API (/containers/json, /containers/{id}/json, /events) — this
+// is impractical in unit tests without a test harness like testcontainers or a
+// mock Docker daemon (e.g., bollard's DockerTestServer).
