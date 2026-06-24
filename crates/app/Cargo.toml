@@ -61,7 +61,7 @@ hydrate = [
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"
-wasm-bindgen-futures = "0.2"
+wasm-bindgen-futures = "0.4"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
