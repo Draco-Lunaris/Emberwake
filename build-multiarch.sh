@@ -35,6 +35,13 @@ docker buildx build \
   --push \
   .
 
+echo "Verifying multi-arch manifest..."
+docker buildx imagetools inspect "${IMAGE}:latest" --format '{{range .Manifest.Manifests}}{{.Platform.OS}}/{{.Platform.Architecture}}{{end}}'
+if [ $? -ne 0 ]; then
+  echo "ERROR: Failed to verify multi-arch manifest"
+  exit 1
+fi
+
 echo "Multi-arch build complete:"
 echo "  ${IMAGE}:${VERSION}"
 echo "  ${IMAGE}:latest"
