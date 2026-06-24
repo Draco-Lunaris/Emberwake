@@ -147,6 +147,14 @@ async fn ssr_active_theme_tokens_in_http_response() {
         "SSR response should contain --accent CSS custom property"
     );
     assert!(
+        html.contains("--text: #e2e8f0"),
+        "SSR response should contain --text CSS custom property from active theme"
+    );
+    assert!(
+        html.contains("--border: #334155"),
+        "SSR response should contain --border CSS custom property from active theme"
+    );
+    assert!(
         html.contains("--radius: 12px"),
         "SSR response should contain --radius CSS custom property"
     );
