@@ -33,6 +33,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Supply-chain gate (cargo-deny + cargo-audit)
+        uses: dtolnay/rust-toolchain@stable
+      - run: |
+          cargo install cargo-deny --locked
+          cargo deny check
+          cargo install cargo-audit --locked
+          cargo audit
+
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@v6
@@ -70,7 +78,6 @@ jobs:
       - run: |
           cargo install cargo-cyclonedx --locked
           cargo cyclonedx --format json --override-filename emberwake.cdx
-        continue-on-error: true
 
       - name: Attach SBOM to the GitHub Release
         uses: softprops/action-gh-release@v3
