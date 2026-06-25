@@ -60,6 +60,7 @@ pub fn Dashboard(data: DashboardView) -> impl IntoView {
             {if settings.bookmarks_enabled {
                 view! {
                     <section class="pinned-categories" style=format!("--section-columns: {}", settings.bookmarks_columns)>
+                        <h2>"Bookmarks"</h2>
                         {if has_categories {
                             data.pinned_categories.into_iter().map(|group| view! { <CategorySection group=group /> }).collect::<Vec<_>>().into_any()
                         } else {
