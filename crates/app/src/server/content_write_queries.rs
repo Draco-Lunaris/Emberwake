@@ -359,7 +359,7 @@ pub async fn create_application_query(
     .bind(&input.url)
     .bind(&input.icon)
     .bind(&input.description)
-    .bind(1i64 as i64)
+    .bind(1i64)
     .bind(order_index)
     .bind(input.visibility.to_string())
     .bind(&now)
