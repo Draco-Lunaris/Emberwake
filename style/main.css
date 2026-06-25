@@ -1394,3 +1394,69 @@ hr {
     .add-content { flex-direction: column; }
     .add-content a { justify-content: center; }
 }
+
+/* ── Three-section dashboard layout ─────────────────── */
+.applications-section {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 0.5);
+}
+.applications-section .tiles {
+    display: grid;
+    grid-template-columns: repeat(var(--section-columns, 4), 1fr);
+    gap: calc(var(--spacing) * 0.625);
+}
+.application-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    padding: 20px 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    text-align: center;
+    text-decoration: none;
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+.application-tile:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+.pinned-categories {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 0.75);
+}
+.pinned-categories .category {
+    column-count: var(--section-columns, 3);
+    column-gap: calc(var(--spacing) * 1.5);
+}
+.pinned-categories .bookmarks {
+    break-inside: avoid-column;
+}
+.dashboard-settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.dashboard-settings-form label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+@media (max-width: 768px) {
+    .applications-section .tiles {
+        grid-template-columns: repeat(var(--section-columns, 4), 1fr);
+    }
+    .pinned-categories .category {
+        column-count: 1;
+    }
+}

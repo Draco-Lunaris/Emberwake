@@ -473,6 +473,11 @@ pub async fn create_bookmark(input: BookmarkInput) -> Result<Bookmark, ServerFnE
         let info = require_auth_csrf(&pool).await?;
         crate::server::content_write_queries::validate_name(&input.name)?;
         crate::server::content_write_queries::validate_url(&input.url)?;
+        if input.category_id == Uuid::nil() {
+            return Err(ServerFnError::from(AppError::Validation(
+                "category_id is required".into(),
+            )));
+        }
         let bm = crate::server::content_write_queries::create_bookmark_query(&pool, input).await?;
         audit_content(
             &pool,

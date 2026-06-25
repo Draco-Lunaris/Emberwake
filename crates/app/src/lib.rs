@@ -12,7 +12,9 @@ pub mod server;
 
 use components::auth::{AccountPage, AdminPage, LoginPage, SetupPage};
 use components::dashboard::Dashboard;
-use components::editors::{BookmarkEditPage, CategoryEditPage, EditPage, ServiceEditPage};
+use components::editors::{
+    ApplicationEditPage, BookmarkEditPage, CategoryEditPage, EditPage, ServiceEditPage,
+};
 use components::search::SearchIsland;
 use components::settings::SettingsPage;
 use domain::{DashboardView, SetupState};
@@ -83,6 +85,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/admin") view=AdminPage />
                     <Route path=path!("/edit") view=EditPage />
                     <Route path=path!("/edit/service") view=ServiceEditPage />
+                    <Route path=path!("/edit/application") view=ApplicationEditPage />
                     <Route path=path!("/edit/bookmark") view=BookmarkEditPage />
                     <Route path=path!("/edit/category") view=CategoryEditPage />
                     <Route path=path!("/settings") view=SettingsPage />

@@ -38,6 +38,7 @@ pub fn Navbar() -> impl IntoView {
                             <A href="/edit/service">"Add Service"</A>
                             <A href="/edit/bookmark">"Add Bookmark"</A>
                             <A href="/edit/category">"Add Category"</A>
+                            <A href="/edit/application">"Add Application"</A>
                             <A href="/settings">"Settings"</A>
                             <A href="/account">"Account"</A>
                             {if u.role == Role::Admin {

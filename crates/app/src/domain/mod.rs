@@ -271,7 +271,7 @@ pub struct ApplicationPatch {
 #[derive(Debug, Clone, Serialize, Deserialize, garde::Validate)]
 pub struct BookmarkInput {
     #[garde(skip)]
-    pub category_id: Option<Uuid>,
+    pub category_id: Uuid,
     #[garde(length(min = 1))]
     pub name: String,
     #[garde(url)]
@@ -285,7 +285,7 @@ pub struct BookmarkInput {
 /// Patch for updating a bookmark (all fields optional; None = no change).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BookmarkPatch {
-    pub category_id: Option<Option<Uuid>>,
+    pub category_id: Option<Uuid>,
     pub name: Option<String>,
     pub url: Option<String>,
     pub icon: Option<String>,

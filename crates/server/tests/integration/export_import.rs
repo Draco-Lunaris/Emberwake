@@ -54,7 +54,7 @@ async fn seed_dataset(pool: &sqlx::SqlitePool) {
     create_bookmark_query(
         pool,
         BookmarkInput {
-            category_id: Some(cat.id),
+            category_id: cat.id,
             name: "Docs".into(),
             url: "https://docs.example.com".into(),
             icon: None,

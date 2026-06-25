@@ -138,7 +138,7 @@ async fn category_delete_reparents_items(pool: SqlitePool) {
 
     let bm = repo
         .create_bookmark(BookmarkInput {
-            category_id: Some(cat.id),
+            category_id: cat.id,
             name: "Bm".into(),
             url: "https://bm.example.com".into(),
             icon: None,
@@ -336,7 +336,7 @@ async fn bookmark_create_update_delete(pool: SqlitePool) {
     // Create
     let bm = repo
         .create_bookmark(BookmarkInput {
-            category_id: Some(cat.id),
+            category_id: cat.id,
             name: "Docs".into(),
             url: "https://docs.example.com".into(),
             icon: None,
@@ -387,7 +387,7 @@ async fn bookmark_reorder(pool: SqlitePool) {
 
     let b1 = repo
         .create_bookmark(BookmarkInput {
-            category_id: Some(cat.id),
+            category_id: cat.id,
             name: "B1".into(),
             url: "https://b1.example.com".into(),
             icon: None,
@@ -397,7 +397,7 @@ async fn bookmark_reorder(pool: SqlitePool) {
         .expect("create b1");
     let b2 = repo
         .create_bookmark(BookmarkInput {
-            category_id: Some(cat.id),
+            category_id: cat.id,
             name: "B2".into(),
             url: "https://b2.example.com".into(),
             icon: None,

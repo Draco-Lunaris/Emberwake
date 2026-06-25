@@ -75,7 +75,7 @@ async fn crud_persists_across_restart() {
 
         let bm = repo
             .create_bookmark(BookmarkInput {
-                category_id: Some(cat.id),
+                category_id: cat.id,
                 name: "Docs".into(),
                 url: "https://docs.example.com".into(),
                 icon: None,

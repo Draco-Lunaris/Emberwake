@@ -520,7 +520,11 @@ pub async fn create_bookmark_query(
         .await?;
     let order_index = max_row.0.unwrap_or(-1) + 1;
 
-    let cat_id = input.category_id.map(|u| u.to_string());
+    let cat_id = if input.category_id == Uuid::nil() {
+        None
+    } else {
+        Some(input.category_id.to_string())
+    };
 
     sqlx::query(
         "INSERT INTO bookmark (id, category_id, name, url, icon, order_index, visibility, \
@@ -573,7 +577,7 @@ pub async fn update_bookmark_query(
     let current = row_to_bookmark(&row);
 
     let category_id = match patch.category_id {
-        Some(opt) => opt.map(|u| u.to_string()),
+        Some(u) => Some(u.to_string()),
         None => current.category_id.map(|u| u.to_string()),
     };
     let name = patch.name.unwrap_or(current.name);

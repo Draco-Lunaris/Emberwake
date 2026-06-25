@@ -11,8 +11,8 @@
 
 use crate::components::Navbar;
 use crate::domain::{
-    AuthSettings, DesignTokens, IntegrationSettings, SettingsPatch, SettingsView, ThemeInput,
-    ThemeSummary, WeatherSettings,
+    AuthSettings, DashboardSettings, DesignTokens, IntegrationSettings, SettingsPatch,
+    SettingsView, ThemeInput, ThemeSummary, WeatherSettings,
 };
 use leptos::prelude::*;
 use uuid::Uuid;
@@ -104,6 +104,11 @@ pub fn SettingsPage() -> impl IntoView {
                     settings_resource.get().map(|settings: SettingsView| {
                         view! { <SettingsForm settings /> }
                     })
+                }}
+            </Suspense>
+            <Suspense fallback=|| view! { <p class="text-muted">"Loading dashboard settings…"</p> }>
+                {move || {
+                    view! { <DashboardSettingsSection /> }
                 }}
             </Suspense>
             <Suspense fallback=|| view! { <p class="text-muted">"Loading themes…"</p> }>
@@ -297,6 +302,133 @@ fn SettingsForm(settings: SettingsView) -> impl IntoView {
                     {msg.clone()}
                 </span>
             })}
+        </div>
+    }
+}
+
+// ── Dashboard settings section ─────────────────────────────────────────────────
+
+#[component]
+fn DashboardSettingsSection() -> impl IntoView {
+    let settings_resource = Resource::new(
+        || (),
+        |_| async {
+            crate::server::settings::get_dashboard_settings()
+                .await
+                .unwrap_or_default()
+        },
+    );
+
+    view! {
+        <Suspense fallback=|| view! { <p class="text-muted">"Loading…"</p> }>
+            {move || {
+                settings_resource.get().map(|settings: DashboardSettings| {
+                    view! { <DashboardSettingsForm settings /> }
+                })
+            }}
+        </Suspense>
+    }
+}
+
+#[component]
+fn DashboardSettingsForm(settings: DashboardSettings) -> impl IntoView {
+    let (svc_enabled, set_svc_enabled) = signal(settings.services_enabled);
+    let (svc_cols, set_svc_cols) = signal(settings.services_columns);
+    let (app_enabled, set_app_enabled) = signal(settings.applications_enabled);
+    let (app_cols, set_app_cols) = signal(settings.applications_columns);
+    let (bm_enabled, set_bm_enabled) = signal(settings.bookmarks_enabled);
+    let (bm_cols, set_bm_cols) = signal(settings.bookmarks_columns);
+    let (save_status, set_save_status) = signal(Option::<String>::None);
+
+    let save_action = Action::new(move |settings: &DashboardSettings| {
+        let settings = settings.clone();
+        async move {
+            crate::server::settings::update_dashboard_settings(settings)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    Effect::new(move || match save_action.value().get() {
+        Some(Ok(_)) => set_save_status.set(Some("✓ Dashboard settings saved".to_string())),
+        Some(Err(e)) => set_save_status.set(Some(format!("Error: {e}"))),
+        None => {}
+    });
+
+    view! {
+        <div class="settings-section">
+            <h2>"Dashboard Sections"</h2>
+            <div class="dashboard-settings-form">
+                <label>
+                    <input
+                        type="checkbox"
+                        prop:checked=svc_enabled
+                        on:change=move |ev| set_svc_enabled.set(event_target_checked(&ev))
+                    />
+                    "Services enabled"
+                </label>
+                <label>"Services columns: "
+                    <input
+                        type="number"
+                        min="1"
+                        max="8"
+                        prop:value=move || svc_cols.get().to_string()
+                        on:input=move |ev| set_svc_cols.set(event_target_value(&ev).parse().unwrap_or(4))
+                    />
+                </label>
+                <label>
+                    <input
+                        type="checkbox"
+                        prop:checked=app_enabled
+                        on:change=move |ev| set_app_enabled.set(event_target_checked(&ev))
+                    />
+                    "Applications enabled"
+                </label>
+                <label>"Applications columns: "
+                    <input
+                        type="number"
+                        min="1"
+                        max="8"
+                        prop:value=move || app_cols.get().to_string()
+                        on:input=move |ev| set_app_cols.set(event_target_value(&ev).parse().unwrap_or(4))
+                    />
+                </label>
+                <label>
+                    <input
+                        type="checkbox"
+                        prop:checked=bm_enabled
+                        on:change=move |ev| set_bm_enabled.set(event_target_checked(&ev))
+                    />
+                    "Bookmarks enabled"
+                </label>
+                <label>"Bookmarks columns: "
+                    <input
+                        type="number"
+                        min="1"
+                        max="8"
+                        prop:value=move || bm_cols.get().to_string()
+                        on:input=move |ev| set_bm_cols.set(event_target_value(&ev).parse().unwrap_or(3))
+                    />
+                </label>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <button on:click=move |_| {
+                        set_save_status.set(None);
+                        save_action.dispatch(DashboardSettings {
+                            services_enabled: svc_enabled.get(),
+                            services_columns: svc_cols.get(),
+                            applications_enabled: app_enabled.get(),
+                            applications_columns: app_cols.get(),
+                            bookmarks_enabled: bm_enabled.get(),
+                            bookmarks_columns: bm_cols.get(),
+                        });
+                    }>"Save Dashboard Settings"</button>
+                    {move || save_status.get().map(|msg| view! {
+                        <span class=if msg.starts_with('✓') { "success-msg" } else { "error" }>
+                            {msg.clone()}
+                        </span>
+                    })}
+                </div>
+            </div>
         </div>
     }
 }

@@ -8,8 +8,8 @@ use leptos::task::spawn_local;
 use uuid::Uuid;
 
 use crate::domain::{
-    Bookmark, BookmarkInput, BookmarkPatch, Category, CategoryInput, CategoryPatch, Service,
-    ServiceInput, ServicePatch, Visibility,
+    Application, ApplicationInput, ApplicationPatch, Bookmark, BookmarkInput, BookmarkPatch,
+    Category, CategoryInput, CategoryPatch, Service, ServiceInput, ServicePatch, Visibility,
 };
 use crate::server::content_write;
 
@@ -460,6 +460,268 @@ pub fn ServiceEditor(
     }
 }
 
+// --- Application Editor ---
+
+/// Application editor: create, edit, delete, and reorder applications.
+/// Like ServiceEditor but without monitoring fields or pin toggle.
+#[component]
+pub fn ApplicationEditor(
+    applications: ReadSignal<Vec<Application>>,
+    set_applications: WriteSignal<Vec<Application>>,
+) -> impl IntoView {
+    use crate::domain::CategoryWithItems;
+    use crate::server::content_read;
+
+    let (name, set_name) = signal(String::new());
+    let (url, set_url) = signal(String::new());
+    let (visibility, set_visibility) = signal(Visibility::Public);
+    let (icon, set_icon) = signal(String::new());
+    let (description, set_description) = signal(String::new());
+    let (category_id, set_category_id) = signal(Uuid::nil());
+    let (error, set_error) = signal(Option::<String>::None);
+    let (dragged_id, set_dragged_id) = signal(Option::<Uuid>::None);
+    let (pending_delete, set_pending_delete) = signal(Option::<Uuid>::None);
+    let (editing_id, set_editing_id) = signal(Option::<Uuid>::None);
+
+    let categories_resource = Resource::new(
+        || (),
+        |_| async { content_read::list_categories().await.unwrap_or_default() },
+    );
+
+    let create_action = Action::new(move |input: &ApplicationInput| {
+        let input = input.clone();
+        async move {
+            content_write::create_application(input)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    let update_action = Action::new(move |(id, patch): &(Uuid, ApplicationPatch)| {
+        let (id, patch) = (*id, patch.clone());
+        async move {
+            content_write::update_application(id, patch)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    let delete_action = Action::new(move |id: &Uuid| {
+        let id = *id;
+        async move {
+            content_write::delete_application(id)
+                .await
+                .map(|_| id)
+                .map_err(|e| e.to_string())
+        }
+    });
+
+    Effect::new(move || {
+        if let Some(Ok(app)) = create_action.value().get() {
+            set_applications.update(|apps| apps.push(app.clone()));
+            set_name.set(String::new());
+            set_url.set(String::new());
+            set_icon.set(String::new());
+            set_description.set(String::new());
+            set_category_id.set(Uuid::nil());
+            set_error.set(None);
+        }
+        if let Some(Err(e)) = create_action.value().get() {
+            set_error.set(Some(e));
+        }
+    });
+
+    Effect::new(move || {
+        if let Some(Ok(app)) = update_action.value().get() {
+            set_applications.update(|apps| {
+                if let Some(a) = apps.iter_mut().find(|a| a.id == app.id) {
+                    *a = app.clone();
+                }
+            });
+            set_editing_id.set(None);
+            set_name.set(String::new());
+            set_url.set(String::new());
+            set_icon.set(String::new());
+            set_description.set(String::new());
+            set_category_id.set(Uuid::nil());
+            set_visibility.set(Visibility::Public);
+            set_error.set(None);
+        }
+        if let Some(Err(e)) = update_action.value().get() {
+            set_error.set(Some(e));
+        }
+    });
+
+    Effect::new(move || {
+        if let Some(Ok(deleted_id)) = delete_action.value().get() {
+            set_applications.update(|apps| apps.retain(|a| a.id != deleted_id));
+            set_pending_delete.set(None);
+        }
+        if let Some(Err(e)) = delete_action.value().get() {
+            set_error.set(Some(e));
+            set_pending_delete.set(None);
+        }
+    });
+
+    view! {
+        <div class="editor application-editor">
+            <h3>"Applications"</h3>
+            {move || error.get().map(|e| view! { <p class="error">{e}</p> })}
+            <form on:submit=move |ev| {
+                ev.prevent_default();
+                if let Some(id) = editing_id.get() {
+                    let patch = ApplicationPatch {
+                        category_id: Some(if category_id.get() == Uuid::nil() { None } else { Some(category_id.get()) }),
+                        name: Some(name.get()),
+                        url: Some(url.get()),
+                        icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
+                        description: Some(if description.get().is_empty() { None } else { Some(description.get()) }),
+                        is_pinned: None,
+                        visibility: Some(visibility.get()),
+                    };
+                    update_action.dispatch((id, patch));
+                } else {
+                    let input = ApplicationInput {
+                        category_id: if category_id.get() == Uuid::nil() { None } else { Some(category_id.get()) },
+                        name: name.get(),
+                        url: url.get(),
+                        icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
+                        description: if description.get().is_empty() { None } else { Some(description.get()) },
+                        is_pinned: false,
+                        visibility: visibility.get(),
+                    };
+                    create_action.dispatch(input);
+                }
+            }>
+                <input
+                    type="text"
+                    placeholder="Application name"
+                    prop:value=name
+                    on:input=move |ev| set_name.set(event_target_value(&ev))
+                />
+                <input
+                    type="text"
+                    placeholder="https://example.com"
+                    prop:value=url
+                    on:input=move |ev| set_url.set(event_target_value(&ev))
+                />
+                <input
+                    type="text"
+                    placeholder="Icon URL (https://example.com/icon.png)"
+                    prop:value=icon
+                    on:input=move |ev| set_icon.set(event_target_value(&ev))
+                />
+                <textarea
+                    placeholder="Application description"
+                    prop:value=description
+                    on:input=move |ev| set_description.set(event_target_value(&ev))
+                ></textarea>
+                <Suspense fallback=|| view! { <p>"Loading categories..."</p> }>
+                    {move || {
+                        categories_resource.get().map(|cats: Vec<CategoryWithItems>| {
+                            view! {
+                                <select on:change=move |ev| set_category_id.set(Uuid::parse_str(&event_target_value(&ev)).unwrap_or(Uuid::nil()))>
+                                    <option value="" selected=move || category_id.get() == Uuid::nil()>"No category"</option>
+                                    {cats.into_iter().map(|cat| {
+                                        let cid = cat.id;
+                                        let cname = cat.name.clone();
+                                        view! {
+                                            <option value=cid.to_string() selected=move || category_id.get() == cid>
+                                                {cname}
+                                            </option>
+                                        }
+                                    }).collect::<Vec<_>>()}
+                                </select>
+                            }
+                        })
+                    }}
+                </Suspense>
+                <select on:change=move |ev| set_visibility.set(parse_visibility(&event_target_value(&ev)))>
+                    <option value="public" selected=move || visibility.get() == Visibility::Public>"Public"</option>
+                    <option value="private" selected=move || visibility.get() == Visibility::Private>"Private"</option>
+                    <option value="restricted" selected=move || visibility.get() == Visibility::Restricted>"Restricted"</option>
+                </select>
+                <button type="submit">{move || if editing_id.get().is_some() { "Update" } else { "Add" }}</button>
+                {move || editing_id.get().map(|_| view! {
+                    <button type="button" on:click=move |_| {
+                        set_editing_id.set(None);
+                        set_name.set(String::new());
+                        set_url.set(String::new());
+                        set_icon.set(String::new());
+                        set_description.set(String::new());
+                        set_category_id.set(Uuid::nil());
+                        set_visibility.set(Visibility::Public);
+                        set_error.set(None);
+                    }>"Cancel"</button>
+                })}
+            </form>
+            <ul class="reorder-list">
+                {move || {
+                    applications.get().into_iter().map(|app| {
+                        let app_id = app.id;
+                        let app_name = app.name.clone();
+                        let app_url = app.url.clone();
+                        let app_visibility = app.visibility;
+                        let edit_name = app_name.clone();
+                        let edit_url = app_url.clone();
+                        let edit_icon = app.icon.clone();
+                        let edit_description = app.description.clone();
+                        let edit_category = app.category_id;
+                        view! {
+                            <li
+                                draggable="true"
+                                on:dragstart=move |_| set_dragged_id.set(Some(app_id))
+                                on:dragover=move |ev| ev.prevent_default()
+                                on:drop=move |_| {
+                                    if let Some(dragged) = dragged_id.get() {
+                                        let mut apps = applications.get();
+                                        if let Some(from) = apps.iter().position(|a| a.id == dragged)
+                                            && let Some(to) = apps.iter().position(|a| a.id == app_id)
+                                        {
+                                            apps.swap(from, to);
+                                            let order: Vec<Uuid> = apps.iter().map(|a| a.id).collect();
+                                            set_applications.set(apps);
+                                            spawn_local(async move { let _ = content_write::reorder_applications(None, order).await; });
+                                        }
+                                    }
+                                    set_dragged_id.set(None);
+                                }
+                            >
+                                <span>{app_name.clone()}</span>
+                                <button
+                                    type="button"
+                                    on:click=move |_| {
+                                        set_name.set(edit_name.clone());
+                                        set_url.set(edit_url.clone());
+                                        set_icon.set(edit_icon.clone().unwrap_or_default());
+                                        set_description.set(edit_description.clone().unwrap_or_default());
+                                        set_category_id.set(edit_category.unwrap_or(Uuid::nil()));
+                                        set_visibility.set(app_visibility);
+                                        set_editing_id.set(Some(app_id));
+                                    }
+                                >
+                                    "Edit"
+                                </button>
+                                <button
+                                    type="button"
+                                    on:click=move |_| {
+                                        if confirm_delete(&format!("Delete application \"{}\"", app_name)) {
+                                            set_pending_delete.set(Some(app_id));
+                                            delete_action.dispatch(app_id);
+                                        }
+                                    }
+                                >
+                                    {move || if pending_delete.get() == Some(app_id) { "Deleting..." } else { "Delete" }}
+                                </button>
+                            </li>
+                        }
+                    }).collect::<Vec<_>>()
+                }}
+            </ul>
+        </div>
+    }
+}
+
 // --- Bookmark Editor ---
 
 /// Bookmark editor: create, edit, delete, and reorder bookmarks.
@@ -473,10 +735,21 @@ pub fn BookmarkEditor(
     let (url, set_url) = signal(String::new());
     let (visibility, set_visibility) = signal(Visibility::Public);
     let (icon, set_icon) = signal(String::new());
+    let (selected_category_id, set_selected_category_id) =
+        signal(category_id.unwrap_or(Uuid::nil()));
     let (error, set_error) = signal(Option::<String>::None);
     let (dragged_id, set_dragged_id) = signal(Option::<Uuid>::None);
     let (pending_delete, set_pending_delete) = signal(Option::<Uuid>::None);
     let (editing_id, set_editing_id) = signal(Option::<Uuid>::None);
+
+    let categories_resource = Resource::new(
+        || (),
+        |_| async {
+            crate::server::content_read::list_categories()
+                .await
+                .unwrap_or_default()
+        },
+    );
 
     let create_action = Action::new(move |input: &BookmarkInput| {
         let input = input.clone();
@@ -512,6 +785,7 @@ pub fn BookmarkEditor(
             set_name.set(String::new());
             set_url.set(String::new());
             set_icon.set(String::new());
+            set_selected_category_id.set(Uuid::nil());
             set_error.set(None);
         }
         if let Some(Err(e)) = create_action.value().get() {
@@ -530,6 +804,7 @@ pub fn BookmarkEditor(
             set_name.set(String::new());
             set_url.set(String::new());
             set_icon.set(String::new());
+            set_selected_category_id.set(Uuid::nil());
             set_visibility.set(Visibility::Public);
             set_error.set(None);
         }
@@ -557,7 +832,7 @@ pub fn BookmarkEditor(
                 ev.prevent_default();
                 if let Some(id) = editing_id.get() {
                     let patch = BookmarkPatch {
-                        category_id: None,
+                        category_id: Some(selected_category_id.get()),
                         name: Some(name.get()),
                         url: Some(url.get()),
                         icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
@@ -566,7 +841,7 @@ pub fn BookmarkEditor(
                     update_action.dispatch((id, patch));
                 } else {
                     let input = BookmarkInput {
-                        category_id,
+                        category_id: selected_category_id.get(),
                         name: name.get(),
                         url: url.get(),
                         icon: if icon.get().is_empty() { None } else { Some(icon.get()) },
@@ -593,6 +868,26 @@ pub fn BookmarkEditor(
                     prop:value=icon
                     on:input=move |ev| set_icon.set(event_target_value(&ev))
                 />
+                <Suspense fallback=|| view! { <p>"Loading categories..."</p> }>
+                    {move || {
+                        categories_resource.get().map(|cats: Vec<crate::domain::CategoryWithItems>| {
+                            view! {
+                                <select on:change=move |ev| set_selected_category_id.set(Uuid::parse_str(&event_target_value(&ev)).unwrap_or(Uuid::nil()))>
+                                    <option value="" selected=move || selected_category_id.get() == Uuid::nil()>"Select category"</option>
+                                    {cats.into_iter().map(|cat| {
+                                        let cid = cat.id;
+                                        let cname = cat.name.clone();
+                                        view! {
+                                            <option value=cid.to_string() selected=move || selected_category_id.get() == cid>
+                                                {cname}
+                                            </option>
+                                        }
+                                    }).collect::<Vec<_>>()}
+                                </select>
+                            }
+                        })
+                    }}
+                </Suspense>
                 <select on:change=move |ev| set_visibility.set(parse_visibility(&event_target_value(&ev)))>
                     <option value="public" selected=move || visibility.get() == Visibility::Public>"Public"</option>
                     <option value="private" selected=move || visibility.get() == Visibility::Private>"Private"</option>
@@ -605,6 +900,7 @@ pub fn BookmarkEditor(
                         set_name.set(String::new());
                         set_url.set(String::new());
                         set_icon.set(String::new());
+                        set_selected_category_id.set(Uuid::nil());
                         set_visibility.set(Visibility::Public);
                         set_error.set(None);
                     }>"Cancel"</button>
@@ -620,6 +916,7 @@ pub fn BookmarkEditor(
                         let edit_name = bm_name.clone();
                         let edit_url = bm_url.clone();
                         let edit_icon = bm.icon.clone();
+                        let edit_category_id = bm.category_id.unwrap_or(Uuid::nil());
                         view! {
                             <li
                                 draggable="true"
@@ -648,6 +945,7 @@ pub fn BookmarkEditor(
                                         set_name.set(edit_name.clone());
                                         set_url.set(edit_url.clone());
                                         set_icon.set(edit_icon.clone().unwrap_or_default());
+                                        set_selected_category_id.set(edit_category_id);
                                         set_visibility.set(bm_visibility);
                                         set_editing_id.set(Some(bm_id));
                                     }
@@ -872,6 +1170,57 @@ pub fn BookmarkEditPage() -> impl IntoView {
                                     bookmarks_resource.get().map(|bms: Vec<Bookmark>| {
                                         let (bm_signal, set_bm) = signal(bms);
                                         view! { <BookmarkEditor bookmarks=bm_signal set_bookmarks=set_bm category_id=None /> }
+                                    })
+                                }}
+                            </Suspense>
+                        }.into_any(),
+                        None => view! {
+                            <Redirect path="/login" />
+                        }.into_any(),
+                    }
+                })
+            }}
+        </Suspense>
+    }
+}
+
+// --- Application Edit Page ---
+
+/// Application edit page — shows only the ApplicationEditor form and list of existing applications.
+/// Redirects to /login if not authenticated.
+#[component]
+pub fn ApplicationEditPage() -> impl IntoView {
+    use crate::domain::ServiceFilter;
+    use crate::server::{auth, content_read};
+    use leptos_router::components::Redirect;
+
+    let user = Resource::new(
+        || (),
+        |_| async { auth::current_user().await.unwrap_or(None) },
+    );
+
+    let applications_resource = Resource::new(
+        || (),
+        |_| async {
+            content_read::list_applications(ServiceFilter::default())
+                .await
+                .unwrap_or_default()
+        },
+    );
+
+    view! {
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+            {move || {
+                user.get().map(|u| {
+                    match u {
+                        Some(_) => view! {
+                            <crate::components::Navbar />
+                            <h2>"Applications"</h2>
+                            <Suspense fallback=|| view! { <p>"Loading applications..."</p> }>
+                                {move || {
+                                    applications_resource.get().map(|apps: Vec<Application>| {
+                                        let (app_signal, set_app) = signal(apps);
+                                        view! { <ApplicationEditor applications=app_signal set_applications=set_app /> }
                                     })
                                 }}
                             </Suspense>
