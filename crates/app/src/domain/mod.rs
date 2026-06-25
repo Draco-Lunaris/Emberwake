@@ -975,3 +975,27 @@ pub struct ImportPreviewData {
     pub sample_bookmarks: Vec<String>,
     pub sample_services: Vec<String>,
 }
+
+/// Per-section dashboard settings (enable/disable + column count).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DashboardSettings {
+    pub services_enabled: bool,
+    pub services_columns: i64,
+    pub applications_enabled: bool,
+    pub applications_columns: i64,
+    pub bookmarks_enabled: bool,
+    pub bookmarks_columns: i64,
+}
+
+impl Default for DashboardSettings {
+    fn default() -> Self {
+        Self {
+            services_enabled: true,
+            services_columns: 4,
+            applications_enabled: true,
+            applications_columns: 4,
+            bookmarks_enabled: true,
+            bookmarks_columns: 3,
+        }
+    }
+}

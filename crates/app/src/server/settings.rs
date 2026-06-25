@@ -5,8 +5,12 @@
 use leptos::server_fn::ServerFnError;
 use uuid::Uuid;
 
-use crate::domain::{SettingsPatch, SettingsView, Theme, ThemeInput, ThemeSummary};
+use crate::domain::{
+    DashboardSettings, SettingsPatch, SettingsView, Theme, ThemeInput, ThemeSummary,
+};
 use crate::error::AppError;
+#[cfg(feature = "ssr")]
+use crate::server::settings_queries::{get_setting_raw, set_setting_raw};
 
 /// Extract the server key from Axum Extension (same pattern as extended_auth).
 #[cfg(feature = "ssr")]
@@ -192,6 +196,120 @@ pub async fn set_active_theme(id: Uuid) -> Result<(), ServerFnError<AppError>> {
     #[cfg(not(feature = "ssr"))]
     {
         let _ = id;
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+/// Get dashboard section settings (enable/disable + column counts).
+/// Public — no auth required (settings are needed for dashboard rendering).
+#[leptos::server]
+pub async fn get_dashboard_settings() -> Result<DashboardSettings, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        let pool = get_pool().await?;
+        let _server_key = get_server_key().await;
+
+        let svc_en = get_setting_raw(&pool, "dashboard.services.enabled")
+            .await?
+            .unwrap_or_else(|| "true".into());
+        let svc_cols = get_setting_raw(&pool, "dashboard.services.columns")
+            .await?
+            .unwrap_or_else(|| "4".into());
+        let app_en = get_setting_raw(&pool, "dashboard.applications.enabled")
+            .await?
+            .unwrap_or_else(|| "true".into());
+        let app_cols = get_setting_raw(&pool, "dashboard.applications.columns")
+            .await?
+            .unwrap_or_else(|| "4".into());
+        let bm_en = get_setting_raw(&pool, "dashboard.bookmarks.enabled")
+            .await?
+            .unwrap_or_else(|| "true".into());
+        let bm_cols = get_setting_raw(&pool, "dashboard.bookmarks.columns")
+            .await?
+            .unwrap_or_else(|| "3".into());
+
+        Ok(DashboardSettings {
+            services_enabled: svc_en == "true" || svc_en == "1",
+            services_columns: svc_cols.parse().unwrap_or(4),
+            applications_enabled: app_en == "true" || app_en == "1",
+            applications_columns: app_cols.parse().unwrap_or(4),
+            bookmarks_enabled: bm_en == "true" || bm_en == "1",
+            bookmarks_columns: bm_cols.parse().unwrap_or(3),
+        })
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Ok(DashboardSettings::default())
+    }
+}
+
+/// Update dashboard section settings. Admin-gated, CSRF-protected.
+#[leptos::server]
+pub async fn update_dashboard_settings(
+    settings: DashboardSettings,
+) -> Result<DashboardSettings, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        let pool = get_pool().await?;
+        let info = require_admin_csrf(&pool).await?;
+        let server_key = get_server_key().await;
+
+        set_setting_raw(
+            &pool,
+            "dashboard.services.enabled",
+            &settings.services_enabled.to_string(),
+            &server_key,
+        )
+        .await?;
+        set_setting_raw(
+            &pool,
+            "dashboard.services.columns",
+            &settings.services_columns.to_string(),
+            &server_key,
+        )
+        .await?;
+        set_setting_raw(
+            &pool,
+            "dashboard.applications.enabled",
+            &settings.applications_enabled.to_string(),
+            &server_key,
+        )
+        .await?;
+        set_setting_raw(
+            &pool,
+            "dashboard.applications.columns",
+            &settings.applications_columns.to_string(),
+            &server_key,
+        )
+        .await?;
+        set_setting_raw(
+            &pool,
+            "dashboard.bookmarks.enabled",
+            &settings.bookmarks_enabled.to_string(),
+            &server_key,
+        )
+        .await?;
+        set_setting_raw(
+            &pool,
+            "dashboard.bookmarks.columns",
+            &settings.bookmarks_columns.to_string(),
+            &server_key,
+        )
+        .await?;
+
+        audit_setting(
+            &pool,
+            info.user_id,
+            "dashboard_settings_update",
+            "dashboard",
+        )
+        .await;
+
+        Ok(settings)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = settings;
         Err(ServerFnError::from(AppError::Unauthorized))
     }
 }
