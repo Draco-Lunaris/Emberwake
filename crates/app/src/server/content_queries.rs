@@ -8,8 +8,8 @@ use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::domain::{
-    Application, Bookmark, Category, CategoryWithBookmarks, CategoryWithItems, DashboardView,
-    Service, VisibilityFilter,
+    Application, Bookmark, Category, CategoryWithBookmarks, CategoryWithItems, DashboardSettings,
+    DashboardView, Service, VisibilityFilter,
 };
 
 fn parse_uuid(s: &str) -> Uuid {
@@ -200,6 +200,7 @@ pub async fn list_dashboard_query(
         pinned_services,
         pinned_categories,
         applications,
+        settings: DashboardSettings::default(),
     })
 }
 

@@ -124,6 +124,8 @@ pub struct DashboardView {
     pub pinned_categories: Vec<CategoryWithBookmarks>,
     #[serde(default)]
     pub applications: Vec<Application>,
+    #[serde(default)]
+    pub settings: DashboardSettings,
 }
 
 /// Filter for service queries.
