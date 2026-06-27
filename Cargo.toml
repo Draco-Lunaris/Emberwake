@@ -31,7 +31,7 @@ chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 garde = { version = "0.20", features = ["derive", "url"] }
 argon2 = "0.5"
-prometheus = "0.13"
+prometheus = "0.14"
 leptos_meta = "0.8"
 governor = "0.10"
 openidconnect = { version = "4.0", default-features = false, features = ["reqwest", "rustls-tls"] }
