@@ -5,7 +5,8 @@ set -euo pipefail
 
 # --- Configuration -----------------------------------------------------------
 REGISTRY="ghcr.io"
-IMAGE="${REGISTRY}/draco-lunaris/emberwake"
+OWNER="${EMBERWAKE_IMAGE_OWNER:-draco-lunaris}"
+IMAGE="${REGISTRY}/${OWNER}/emberwake"
 
 # Version: from git tag, or "dev" if not on a tag.
 VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"

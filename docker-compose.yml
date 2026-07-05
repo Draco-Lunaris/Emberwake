@@ -1,5 +1,5 @@
 # Docker Compose for Emberwake
-# Placeholder — finalized in Phase 12.
+# Non-root, read-only rootfs, data volume at /var/lib/emberwake.
 
 services:
   emberwake:

@@ -2,10 +2,62 @@
 
 All notable changes to Emberwake are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
-project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
+this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Fixed — Gap Analysis P0/P1 (2026-07-05)
+
+- **Dashboard settings wiring (P0)**: `list_dashboard_query` now reads the six persisted
+  `dashboard.*` setting keys via `read_dashboard_settings` instead of returning
+  `DashboardSettings::default()`. Section enable/disable and column counts now apply to the
+  rendered dashboard (closes BV-004/BV-005/BV-014/BV-015 silent no-op).
+- **Uncategorized bookmarks (P0)**: bookmarks with NULL `category_id` now render under a
+  synthetic 'Uncategorized' category group on the dashboard (closes BV-003/BV-007).
+- **Icon upload path (P0)**: `upload_icon` writes to `{icons_dir}/{id}.{ext}` where
+  `icons_dir` is derived from the `db_path` parent and wired via an `IconsDir` Axum
+  Extension. Fixes icon upload in containers with read-only rootfs and a data volume at
+  `/var/lib/emberwake`.
+- **`update_bookmark` category enforcement (P0)**: `update_bookmark` now rejects
+  `Uuid::nil()` `category_id`, matching `create_bookmark` (FR-021: REQUIRED).
+- **Constant-time CSRF compare (P1)**: `validate_csrf` uses `subtle::ConstantTimeEq`
+  instead of `==` to avoid timing side channels.
+- **Strict Origin validation (P1)**: `validate_origin` parses the Origin/Referer URL and
+  compares the `host:port` authority byte-for-byte against the request's Host header. No
+  substring matching (rejects `evil-localhost:5005.evil.com`); empty Host is rejected
+  fail-closed. Regression tests added.
+- **HMAC-signed import token (P1)**: import preview tokens are now HMAC-SHA256-signed with
+  `server_key` (`<base64(json)>.<base64(hmac)>`), preventing clients from crafting arbitrary
+  `ParsedData` to bypass the parser's size/depth limits.
+- **Configurable WebAuthn RP (P1)**: WebAuthn RP ID/origin are configurable via the
+  `[webauthn]` config section (`rp_id`, `rp_origin`). Falls back to `localhost:{port}` for
+  local dev.
+- **OIDC approval server functions (P1)**: `list_pending_identities` and
+  `approve_external_identity` complete the admin-approve provisioning workflow (FR-013).
+- **`create_application` is_pinned (P1)**: `create_application_query` honors
+  `input.is_pinned` instead of hardcoding `1`.
+- **Scoped reorder (P1)**: `reorder_*_query` functions now scope updates by `category_id`
+  to prevent cross-category `order_index` collisions.
+- **DiscoveryCache poison-safe (P1)**: `DiscoveryCache` RwLock access is poison-safe —
+  `.unwrap()` replaced with graceful handling that logs and returns empty/skips on
+  `PoisonError`.
+
+### Changed — DOX (2026-07-05)
+
+- `SPEC_STATE.md` updated to reflect Phase 13 reality (T085–T092 complete, T093 pending).
+- Root `AGENTS.md` adds Phase 13 status section.
+- `crates/AGENTS.md` reconciles the auth/CSRF code-location contract with the actual
+  `app/src/server/auth_helper.rs` placement and documents the new wiring.
+- `docker-compose.yml` comment updated (non-root, read-only rootfs, data volume).
+- `build-multiarch.sh` image owner is configurable via `EMBERWAKE_IMAGE_OWNER`.
+- `e2e/Cargo.toml` license corrected to Apache-2.0.
+
+### Added — Audit reports (2026-07-05)
+
+- `docs/audits/2026-07-05-codebase-deep-dive.md` — full codebase deep-dive.
+- `docs/audits/2026-07-05-gap-analysis.md` — spec gap analysis with prioritized
+  recommendations.
 
 ### Added — Phase 12 (Polish)
 

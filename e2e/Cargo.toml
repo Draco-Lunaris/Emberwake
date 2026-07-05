@@ -3,7 +3,7 @@ name = "e2e"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
-license = "MIT"
+license = "Apache-2.0"
 
 # E2E tests are NOT part of the workspace to avoid pulling fantoccini's
 # native-tls/openssl dependency into the deny.toml supply-chain gate.
