@@ -158,7 +158,8 @@ pub async fn list_pending_identities() -> Result<Vec<ExternalIdentity>, ServerFn
              WHERE e.approved = 0 ORDER BY e.created_at ASC",
         )
         .fetch_all(&pool)
-        .await?;
+        .await
+        .map_err(|_| AppError::Internal)?;
         let out: Vec<ExternalIdentity> = rows
             .iter()
             .map(|r| ExternalIdentity {
@@ -209,7 +210,8 @@ pub async fn approve_external_identity(id: Uuid) -> Result<(), ServerFnError<App
 }
 
 #[leptos::server]
-pub async fn passkey_register_begin() -> Result<CredentialCreationOptions, ServerFnError<AppError>> {
+pub async fn passkey_register_begin() -> Result<CredentialCreationOptions, ServerFnError<AppError>>
+{
     #[cfg(feature = "ssr")]
     {
         use axum::Extension;
