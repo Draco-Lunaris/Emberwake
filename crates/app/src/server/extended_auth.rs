@@ -177,9 +177,7 @@ pub async fn list_pending_identities() -> Result<Vec<ExternalIdentity>, ServerFn
 
 /// Approve a pending OIDC external identity. Admin-gated, CSRF-protected, audited.
 #[leptos::server]
-pub async fn approve_external_identity(
-    id: Uuid,
-) -> Result<(), ServerFnError<AppError>> {
+pub async fn approve_external_identity(id: Uuid) -> Result<(), ServerFnError<AppError>> {
     #[cfg(feature = "ssr")]
     {
         use axum::Extension;
