@@ -150,7 +150,7 @@ pub async fn create_session(
     user_id: &str,
     user_agent: Option<&str>,
     ip: Option<&str>,
-) -> Result<(String, String), AppError> {
+) -> Result<(String, String>, AppError> {
     let session_token = random_token();
     let csrf_token = random_token();
     let now = Utc::now();
@@ -351,7 +351,7 @@ pub async fn login_query(
     input: &LoginInput,
     user_agent: Option<&str>,
     ip: Option<&str>,
-) -> Result<(String, String, Uuid), AppError> {
+) -> Result<(String, String, Uuid>, AppError> {
     let row: Option<sqlx::sqlite::SqliteRow> = sqlx::query(
         "SELECT id, password_hash, is_active FROM users WHERE username = ? COLLATE NOCASE",
     )
@@ -590,7 +590,16 @@ pub async fn get_user_by_id(
 // --- CSRF validation ---
 
 pub fn validate_csrf(provided: &str, expected: &str) -> Result<(), AppError> {
-    if provided.is_empty() || provided != expected {
+    use subtle::ConstantTimeEq;
+    if provided.is_empty() || expected.is_empty() {
+        return Err(AppError::Forbidden);
+    }
+    let p = provided.as_bytes();
+    let e = expected.as_bytes();
+    // Lengths must match (constant-time eq short-circuits on length mismatch,
+    // which leaks length but not content — acceptable for random tokens of
+    // known fixed length).
+    if p.len() != e.len() || !bool::from(p.ct_eq(e)) {
         return Err(AppError::Forbidden);
     }
     Ok(())
