@@ -34,17 +34,17 @@ async fn read_dashboard_settings(pool: &SqlitePool) -> DashboardSettings {
     let bm_en = get_setting(pool, "dashboard.bookmarks.enabled").await;
     let bm_cols = get_setting(pool, "dashboard.bookmarks.columns").await;
     DashboardSettings {
-        services_enabled: svc_en.as_deref().map_or(true, |v| v == "true" || v == "1"),
+        services_enabled: svc_en.as_deref().is_none_or(|v| v == "true" || v == "1"),
         services_columns: svc_cols
             .as_deref()
             .and_then(|v| v.parse().ok())
             .unwrap_or(4),
-        applications_enabled: app_en.as_deref().map_or(true, |v| v == "true" || v == "1"),
+        applications_enabled: app_en.as_deref().is_none_or(|v| v == "true" || v == "1"),
         applications_columns: app_cols
             .as_deref()
             .and_then(|v| v.parse().ok())
             .unwrap_or(4),
-        bookmarks_enabled: bm_en.as_deref().map_or(true, |v| v == "true" || v == "1"),
+        bookmarks_enabled: bm_en.as_deref().is_none_or(|v| v == "true" || v == "1"),
         bookmarks_columns: bm_cols.as_deref().and_then(|v| v.parse().ok()).unwrap_or(3),
     }
 }
