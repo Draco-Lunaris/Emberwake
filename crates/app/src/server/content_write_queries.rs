@@ -309,7 +309,11 @@ pub async fn reorder_services_query(
         .execute(pool)
         .await?;
         if res.rows_affected() == 0 {
-            tracing::warn!("reorder_services: id {} not in category {:?}", id, cat_filter);
+            tracing::warn!(
+                "reorder_services: id {} not in category {:?}",
+                id,
+                cat_filter
+            );
         }
     }
     Ok(())
@@ -499,7 +503,11 @@ pub async fn reorder_applications_query(
         .execute(pool)
         .await?;
         if res.rows_affected() == 0 {
-            tracing::warn!("reorder_applications: id {} not in category {:?}", id, cat_filter);
+            tracing::warn!(
+                "reorder_applications: id {} not in category {:?}",
+                id,
+                cat_filter
+            );
         }
     }
     Ok(())
