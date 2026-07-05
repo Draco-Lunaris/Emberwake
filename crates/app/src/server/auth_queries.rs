@@ -150,7 +150,7 @@ pub async fn create_session(
     user_id: &str,
     user_agent: Option<&str>,
     ip: Option<&str>,
-) -> Result<(String, String>, AppError> {
+) -> Result<(String, String), AppError> {
     let session_token = random_token();
     let csrf_token = random_token();
     let now = Utc::now();
@@ -351,7 +351,7 @@ pub async fn login_query(
     input: &LoginInput,
     user_agent: Option<&str>,
     ip: Option<&str>,
-) -> Result<(String, String, Uuid>, AppError> {
+) -> Result<(String, String, Uuid), AppError> {
     let row: Option<sqlx::sqlite::SqliteRow> = sqlx::query(
         "SELECT id, password_hash, is_active FROM users WHERE username = ? COLLATE NOCASE",
     )
