@@ -28,7 +28,7 @@ pub struct WebAuthnRpInfo {
 /// In-memory challenge store for WebAuthn flows.
 #[derive(Clone, Default)]
 pub struct ChallengeStore {
-    inner: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>>,
+    inner: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>,
 }
 
 impl ChallengeStore {
@@ -133,6 +133,79 @@ pub fn build_webauthn(rp_info: &WebAuthnRpInfo) -> Result<Webauthn, AppError> {
     let builder = WebauthnBuilder::new(&rp_info.rp_id, &origin).map_err(|_| AppError::Internal)?;
     let builder = builder.rp_name("Emberwake");
     builder.build().map_err(|_| AppError::Internal)
+}
+
+/// List pending (unapproved) OIDC external identities. Admin-gated.
+/// Enables the admin-approve provisioning workflow required by FR-013.
+#[leptos::server]
+pub async fn list_pending_identities() -> Result<Vec<ExternalIdentity>, ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        use sqlx::Row;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = crate::server::auth_helper::require_admin_csrf(&pool).await?;
+        let _ = info;
+        let rows = sqlx::query(
+            "SELECT e.id, e.user_id, e.provider, e.subject, e.created_at \
+             FROM external_identity e \
+             JOIN users u ON u.id = e.user_id \
+             WHERE e.approved = 0 ORDER BY e.created_at ASC",
+        )
+        .fetch_all(&pool)
+        .await?;
+        let out: Vec<ExternalIdentity> = rows
+            .iter()
+            .map(|r| ExternalIdentity {
+                id: Uuid::from_str(r.get::<String, _>("id").as_str()).unwrap_or_default(),
+                user_id: Uuid::from_str(r.get::<String, _>("user_id").as_str()).unwrap_or_default(),
+                provider: r.get("provider"),
+                subject: r.get("subject"),
+                created_at: r.get("created_at"),
+            })
+            .collect();
+        Ok(out)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
+}
+
+/// Approve a pending OIDC external identity. Admin-gated, CSRF-protected, audited.
+#[leptos::server]
+pub async fn approve_external_identity(
+    id: Uuid,
+) -> Result<(), ServerFnError<AppError>> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::Extension;
+        let pool = leptos_axum::extract::<Extension<sqlx::SqlitePool>>()
+            .await
+            .map_err(|_| AppError::Internal)?
+            .0;
+        let info = crate::server::auth_helper::require_admin_csrf(&pool).await?;
+        crate::server::extended_auth_queries::approve_external_identity(&pool, id).await?;
+        crate::server::auth_queries::audit_write_query(
+            &pool,
+            Some(info.user_id),
+            "oidc_approve",
+            Some(&id.to_string()),
+            None,
+            None,
+            "success",
+        )
+        .await;
+        Ok(())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = id;
+        Err(ServerFnError::from(AppError::Unauthorized))
+    }
 }
 
 #[leptos::server]
