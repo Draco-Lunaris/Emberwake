@@ -28,7 +28,7 @@ pub struct WebAuthnRpInfo {
 /// In-memory challenge store for WebAuthn flows.
 #[derive(Clone, Default)]
 pub struct ChallengeStore {
-    inner: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>,
+    inner: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>>,
 }
 
 impl ChallengeStore {
