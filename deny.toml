@@ -6,6 +6,13 @@
 yanked = "deny"
 # unmaintained / unsound surface as warnings until triaged, then promote to deny.
 unmaintained = "workspace"
+# RUSTSEC-2023-0071: rsa crate Marvin Attack timing side-channel.
+# Transitive via openidconnect 4.0.1 (OIDC client). No safe upgrade available
+# upstream. Emberwake does not use RSA directly — it is pulled in by openidconnect
+# for IdP token validation. Accepted as a known risk behind the OIDC integration
+# being opt-in and behind a reverse proxy. Revisit when openidconnect ships a
+# fix (tracked in https://github.com/ramosbugs/openidconnect-rs).
+ignore = ["RUSTSEC-2023-0071"]
 
 [licenses]
 # Allow a conservative set of permissive licenses compatible with Apache-2.0 distribution.
@@ -31,7 +38,7 @@ multiple-versions = "warn"
 wildcards = "deny"
 # native-tls is banned — the project is rustls-only for all TLS (Principle II).
 # Note: openssl/openssl-sys are NOT banned because webauthn-rs uses them for
-# X.509 attestation certificate parsing (not TLS). The project uses rustls
+# X.509 attestation cert parsing (not TLS). The project uses rustls
 # exclusively for transport security; openssl is only for WebAuthn cert chains.
 deny = [
     { name = "native-tls" },
