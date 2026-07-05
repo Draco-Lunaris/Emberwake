@@ -37,18 +37,25 @@ pub async fn require_session(pool: &SqlitePool) -> Result<SessionInfo, AppError>
 /// Fail-closed: if both Origin and Referer are missing, reject with Forbidden.
 /// If Origin is present, it must match. If Origin is missing but Referer is present,
 /// Referer must match. This prevents cross-origin mutation attacks.
+///
+/// Comparison is strict: the Origin/Referer URL's `host:port` must equal the
+/// request's `Host` header byte-for-byte. Substring matching is NOT used (it
+/// allows `evil-localhost:5005.evil.com` to defeat `contains("localhost:5005")`).
+/// An empty Host header is rejected (fail-closed) rather than bypassing the check.
 pub fn validate_origin(headers: &axum::http::HeaderMap) -> Result<(), AppError> {
-    // Extract the expected origin from the Host header.
+    // Extract the expected host:port from the Host header.
     let host = headers
         .get("host")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
+    if host.is_empty() {
+        tracing::warn!("CSRF: Host header missing or empty — rejecting (fail-closed)");
+        return Err(AppError::Forbidden);
+    }
 
     // Check Origin header first (preferred per spec).
     if let Some(origin) = headers.get("origin").and_then(|v| v.to_str().ok()) {
-        // Origin must contain the host. Accept http and https schemes.
-        let origin_matches = origin.contains(host) || host.is_empty();
-        if !origin_matches {
+        if !origin_host_matches(origin, host) {
             tracing::warn!("CSRF: Origin mismatch: origin={origin}, host={host}");
             return Err(AppError::Forbidden);
         }
@@ -57,8 +64,7 @@ pub fn validate_origin(headers: &axum::http::HeaderMap) -> Result<(), AppError> 
 
     // Fall back to Referer header if Origin is missing.
     if let Some(referer) = headers.get("referer").and_then(|v| v.to_str().ok()) {
-        let referer_matches = referer.contains(host) || host.is_empty();
-        if !referer_matches {
+        if !origin_host_matches(referer, host) {
             tracing::warn!("CSRF: Referer mismatch: referer={referer}, host={host}");
             return Err(AppError::Forbidden);
         }
@@ -68,6 +74,32 @@ pub fn validate_origin(headers: &axum::http::HeaderMap) -> Result<(), AppError> 
     // Both missing → fail-closed.
     tracing::warn!("CSRF: Both Origin and Referer missing — rejecting (fail-closed)");
     Err(AppError::Forbidden)
+}
+
+/// Extract the `host:port` (or `host`) authority component from a URL-like
+/// string and compare it byte-for-byte against the expected host. Accepts
+/// `http://`, `https://`, and scheme-relative `//` origins; falls back to
+/// treating the input itself as the authority when no scheme is present.
+fn origin_host_matches(value: &str, expected_host: &str) -> bool {
+    // Strip scheme: `http://host[:port]/...` or `https://host[:port]/...`.
+    let after_scheme = match value.find("://") {
+        Some(idx) => &value[idx + 3..],
+        None => match value.strip_prefix("//") {
+            Some(rest) => rest,
+            None => value,
+        },
+    };
+    // Strip path/query/fragment: authority is everything before the first `/`.
+    let authority = match after_scheme.find('/') {
+        Some(idx) => &after_scheme[..idx],
+        None => after_scheme,
+    };
+    // Strip userinfo if present: `user:pass@host:port` → `host:port`.
+    let authority = match authority.rfind('@') {
+        Some(idx) => &authority[idx + 1..],
+        None => authority,
+    };
+    authority == expected_host
 }
 
 /// Extract session AND validate CSRF token for mutating operations.
