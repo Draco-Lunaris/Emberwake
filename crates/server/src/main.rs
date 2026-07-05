@@ -128,10 +128,7 @@ async fn main() {
         .rp_origin
         .clone()
         .unwrap_or_else(|| format!("http://{}", rp_id));
-    let webauthn_rp = app::server::extended_auth::WebAuthnRpInfo {
-        rp_id,
-        rp_origin,
-    };
+    let webauthn_rp = app::server::extended_auth::WebAuthnRpInfo { rp_id, rp_origin };
     let challenge_store = app::server::extended_auth::ChallengeStore::new();
 
     let public_api = server::public_api::public_api_routes();
@@ -171,7 +168,9 @@ async fn main() {
         .layer(axum::Extension(webauthn_rp))
         .layer(axum::Extension(challenge_store))
         .layer(axum::Extension(discovery_cache))
-        .layer(axum::Extension(app::server::content_write::IconsDir(icons_dir)))
+        .layer(axum::Extension(app::server::content_write::IconsDir(
+            icons_dir,
+        )))
         .layer(axum::Extension(app::server::auth::Argon2Params {
             m_cost: config.argon2.m_cost,
             t_cost: config.argon2.t_cost,
