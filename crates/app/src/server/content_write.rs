@@ -12,6 +12,12 @@ use crate::domain::{
 };
 use crate::error::AppError;
 
+/// Icons directory (derived from `db_path` parent in main.rs). Passed via Axum Extension.
+/// Falls back to `data/icons` when the extension is absent (e.g. tests).
+#[cfg(feature = "ssr")]
+#[derive(Clone)]
+pub struct IconsDir(pub String);
+
 /// Extract session + validate CSRF for mutating operations.
 #[cfg(feature = "ssr")]
 async fn require_auth_csrf(
@@ -514,6 +520,13 @@ pub async fn update_bookmark(
         if let Some(ref url) = patch.url {
             crate::server::content_write_queries::validate_url(url)?;
         }
+        if let Some(cat) = patch.category_id {
+            if cat == Uuid::nil() {
+                return Err(ServerFnError::from(AppError::Validation(
+                    "category_id is required".into(),
+                )));
+            }
+        }
         let bm =
             crate::server::content_write_queries::update_bookmark_query(&pool, id, patch).await?;
         audit_content(
@@ -630,9 +643,14 @@ pub async fn upload_icon(file: Vec<u8>) -> Result<IconRef, ServerFnError<AppErro
         };
 
         let icon_id = Uuid::now_v7();
-        let icon_path = format!("data/icons/{icon_id}.{ext}");
+        let icons_dir = leptos_axum::extract::<Extension<IconsDir>>()
+            .await
+            .map(|d| d.0)
+            .unwrap_or_else(|_| "data/icons".to_string());
 
-        std::fs::create_dir_all("data/icons").map_err(|_| AppError::Internal)?;
+        let icon_path = format!("{icons_dir}/{icon_id}.{ext}");
+
+        std::fs::create_dir_all(&icons_dir).map_err(|_| AppError::Internal)?;
         std::fs::write(&icon_path, &file).map_err(|_| AppError::Internal)?;
 
         audit_content(
