@@ -1,6 +1,8 @@
 //! Extended auth server functions: OIDC, WebAuthn passkeys, scoped API tokens.
 //! These are #[leptos::server] functions that call into extended_auth_queries.
 
+use std::str::FromStr;
+
 use leptos::server_fn::ServerFnError;
 use uuid::Uuid;
 
@@ -207,8 +209,7 @@ pub async fn approve_external_identity(id: Uuid) -> Result<(), ServerFnError<App
 }
 
 #[leptos::server]
-pub async fn passkey_register_begin() -> Result<CredentialCreationOptions, ServerFnError<AppError>>
-{
+pub async fn passkey_register_begin() -> Result<CredentialCreationOptions, ServerFnError<AppError>> {
     #[cfg(feature = "ssr")]
     {
         use axum::Extension;
