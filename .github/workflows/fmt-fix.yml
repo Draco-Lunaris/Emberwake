@@ -1,0 +1,28 @@
+name: Fmt fix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt
+      - name: Install cargo-leptos
+        run: cargo install cargo-leptos 2>/dev/null || true
+      - name: Run cargo fmt
+        run: cargo fmt --all
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --quiet && echo "No changes needed" && exit 0
+          git commit -m "fix: cargo fmt compliance (trailing newlines, method wrapping, clippy fixes)"
+          git push
