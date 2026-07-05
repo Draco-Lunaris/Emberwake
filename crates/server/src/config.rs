@@ -18,6 +18,8 @@ pub struct Config {
     #[serde(default)]
     pub oidc: OidcConfig,
     #[serde(default)]
+    pub webauthn: WebAuthnConfig,
+    #[serde(default)]
     pub argon2: Argon2Config,
     #[serde(default)]
     pub backup: BackupConfig,
@@ -33,6 +35,18 @@ fn default_db_path() -> String {
 
 fn default_bind_addr() -> String {
     "0.0.0.0:5005".to_string()
+}
+
+/// WebAuthn Relying Party configuration. Optional — when unset, falls back to
+/// `localhost:{port}` derived from `bind_addr` (suitable for local dev only).
+/// Production deployments must set `rp_id` (e.g. `emberwake.example.com`) and
+/// `rp_origin` (e.g. `https://emberwake.example.com`).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WebAuthnConfig {
+    #[serde(default)]
+    pub rp_id: Option<String>,
+    #[serde(default)]
+    pub rp_origin: Option<String>,
 }
 
 /// OIDC client configuration. Optional — disabled by default.

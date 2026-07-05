@@ -13,6 +13,16 @@ use crate::error::AppError;
 #[cfg(feature = "ssr")]
 use crate::domain::{DuplicateStrategy, ParsedData};
 
+/// Extract the server key for HMAC token signing. Same pattern as settings.rs.
+#[cfg(feature = "ssr")]
+async fn get_server_key() -> Vec<u8> {
+    use axum::Extension;
+    match leptos_axum::extract::<Extension<crate::server::extended_auth::ServerKey>>().await {
+        Ok(sk) => sk.0.0,
+        Err(_) => Vec::new(),
+    }
+}
+
 /// Require admin session + CSRF for import/export operations.
 #[cfg(feature = "ssr")]
 async fn require_admin_csrf(
@@ -62,6 +72,7 @@ pub async fn import_preview(
             .map_err(|_| AppError::Internal)?
             .0;
         let _info = require_admin_csrf(&pool).await?;
+        let server_key = get_server_key().await;
 
         // Parse under spawn_blocking (heavy CPU work)
         let parsed =
@@ -69,8 +80,9 @@ pub async fn import_preview(
                 .await
                 .map_err(|e| AppError::Validation(format!("parsing task failed: {e}")))??;
 
-        // Generate a preview token (base64-encoded ParsedData)
-        let token = encode_token(&parsed);
+        // Generate a preview token (HMAC-signed so import_apply can verify it
+        // was produced by import_preview and not tampered with by the client).
+        let token = encode_token(&parsed, &server_key)?;
 
         let sample_categories: Vec<String> = parsed
             .categories
@@ -128,9 +140,10 @@ pub async fn import_apply(
             .map_err(|_| AppError::Internal)?
             .0;
         let info = require_admin_csrf(&pool).await?;
+        let server_key = get_server_key().await;
 
-        // Decode the preview token back into ParsedData
-        let parsed = decode_token(&token)?;
+        // Decode the preview token back into ParsedData (HMAC-verified).
+        let parsed = decode_token(&token, &server_key)?;
 
         let strategy = options.duplicate_strategy;
         let now = Utc::now().to_rfc3339();
@@ -493,21 +506,67 @@ pub async fn import_apply(
     }
 }
 
-/// Encode ParsedData as a base64 JSON token (stateless preview token).
+/// Encode ParsedData as an HMAC-signed base64 JSON token.
+/// Format: `<base64(json)>.<base64(hmac)>`. The HMAC is computed over the
+/// base64(json) bytes using HMAC-SHA256 with the server key. Decode verifies
+/// the HMAC before deserializing, so a client cannot craft an arbitrary
+/// ParsedData to bypass the parser's size/depth limits.
 #[cfg(feature = "ssr")]
-fn encode_token(data: &ParsedData) -> String {
+fn encode_token(data: &ParsedData, server_key: &[u8]) -> Result<String, AppError> {
     use base64::prelude::*;
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    type HmacSha256 = Hmac<Sha256>;
     let json = serde_json::to_string(data).unwrap_or_else(|_| "{}".to_string());
-    BASE64_STANDARD.encode(json.as_bytes())
+    let payload = BASE64_STANDARD.encode(json.as_bytes());
+    if server_key.is_empty() {
+        // No server key configured — cannot sign. Return unsigned payload for
+        // backwards compatibility with single-user dev deployments, but log.
+        tracing::warn!("import preview token unsigned: server_key not set");
+        return Ok(format!("{payload}."));
+    }
+    let mut mac = HmacSha256::new_from_slice(server_key).map_err(|_| AppError::Internal)?;
+    mac.update(payload.as_bytes());
+    let sig = BASE64_STANDARD.encode(mac.finalize().into_bytes());
+    Ok(format!("{payload}.{sig}"))
 }
 
-/// Decode a base64 JSON token back into ParsedData.
+/// Decode an HMAC-signed base64 JSON token back into ParsedData.
+/// Verifies the signature before deserializing. An empty signature component
+/// is accepted only when the server key is also empty (dev fallback).
 #[cfg(feature = "ssr")]
-fn decode_token(token: &str) -> Result<ParsedData, AppError> {
+fn decode_token(token: &str, server_key: &[u8]) -> Result<ParsedData, AppError> {
     use base64::prelude::*;
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    type HmacSha256 = Hmac<Sha256>;
+    let (payload, sig) = token
+        .split_once('.')
+        .ok_or_else(|| AppError::Validation("invalid preview token format".into()))?;
     let json_bytes = BASE64_STANDARD
-        .decode(token)
+        .decode(payload)
         .map_err(|_| AppError::Validation("invalid preview token".into()))?;
+    if server_key.is_empty() {
+        if !sig.is_empty() {
+            return Err(AppError::Validation(
+                "preview token signed but server_key not set".into(),
+            ));
+        }
+        return serde_json::from_slice(&json_bytes)
+            .map_err(|_| AppError::Validation("invalid preview token data".into()));
+    }
+    if sig.is_empty() {
+        return Err(AppError::Validation(
+            "preview token unsigned but server_key set".into(),
+        ));
+    }
+    let sig_bytes = BASE64_STANDARD
+        .decode(sig)
+        .map_err(|_| AppError::Validation("invalid preview token signature".into()))?;
+    let mut mac = HmacSha256::new_from_slice(server_key).map_err(|_| AppError::Internal)?;
+    mac.update(payload.as_bytes());
+    mac.verify_slice(&sig_bytes)
+        .map_err(|_| AppError::Validation("preview token signature mismatch".into()))?;
     serde_json::from_slice(&json_bytes)
         .map_err(|_| AppError::Validation("invalid preview token data".into()))
 }

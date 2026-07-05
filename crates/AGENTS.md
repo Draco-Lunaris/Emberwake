@@ -34,8 +34,12 @@ Rust web app on Axum. Three crates form the canonical cargo-leptos workspace sha
 - cargo-leptos config lives in root `Cargo.toml` `[[workspace.metadata.leptos]]`.
 - Binary name: `emberwake` (set via `[[bin]]` in server and `bin-exe-name` in metadata).
 - No `unsafe` in application code (Constitution Principle I).
-- Security-critical code (auth, CSRF, sessions) lives in `server/`, never in `app/`.
+- Security-critical enforcement helpers (`require_session`, `require_session_csrf`,
+  `require_admin_csrf`, `validate_origin`) live in `app/src/server/auth_helper.rs` so they are
+  callable from `#[server]` functions in the `app` crate. HTTP-layer auth handlers (OIDC callback,
+  bearer-token extraction) live in `server/src/auth/`.
 - `app` crate: `sqlx` is optional (behind `ssr` feature) to keep it out of WASM.
+- `app` crate: `subtle` is optional (behind `ssr` feature) for constant-time CSRF comparison.
 - `server` crate: library + binary targets. `lib.rs` re-exports modules for tests.
 
 ## Work Guidance
@@ -57,8 +61,33 @@ Rust web app on Axum. Three crates form the canonical cargo-leptos workspace sha
   server functions (`app`) and repository methods (`server`); this avoids a circular dependency.
 - `app/src/server/content_write_queries.rs` holds shared SQL write functions (ssr-only) for
   create/update/delete/reorder/pin operations; same circular-dependency avoidance pattern.
+- `list_dashboard_query` reads persisted dashboard section settings (6 `dashboard.*` setting keys)
+  via `read_dashboard_settings` so the dashboard component renders with operator-configured
+  enable/disable + column counts. Uncategorized bookmarks (NULL `category_id`) render under a
+  synthetic 'Uncategorized' category group so they remain visible (FR-021 / BV-003).
+- `app/src/server/content_write.rs` exports `IconsDir(pub String)` — an Axum Extension wired in
+  `main.rs` from the `db_path` parent joined with `icons`. `upload_icon` writes to
+  `{icons_dir}/{id}.{ext}` instead of a hardcoded `data/icons` path, so icon upload works in
+  containers where the data volume is at `/var/lib/emberwake`.
+- `create_bookmark` and `update_bookmark` both reject `Uuid::nil()` `category_id` (FR-021: REQUIRED).
+- `reorder_*_query` functions scope updates by `category_id` (services/applications by
+  `Option<Uuid>`, bookmarks by `Uuid`) to prevent cross-category `order_index` collisions.
+- `create_application_query` honors `input.is_pinned` (previously hardcoded to `1`).
+- CSRF validation: `validate_csrf` uses `subtle::ConstantTimeEq`; `validate_origin` parses the
+  Origin/Referer URL and compares the `host:port` authority byte-for-byte against the request's
+  Host header (no substring matching; empty Host is rejected fail-closed).
+- Import preview tokens are HMAC-SHA256-signed with `server_key` (`encode_token`/`decode_token` in
+  `import_export.rs`). Format: `<base64(json)>.<base64(hmac)>`. Unsigned tokens are accepted only
+  when `server_key` is empty (dev fallback).
+- `DiscoveryCache` RwLock access is poison-safe — `.unwrap()` replaced with `map_or_else`/`match`
+  that logs and returns empty/skips on `PoisonError`, so a panicking background task cannot
+  cascade-lock the cache.
+- WebAuthn RP ID/origin are configurable via `[webauthn]` section (`rp_id`, `rp_origin`).
+  Falls back to `localhost:{port}` from `bind_addr` when unset (local-dev only).
+- `list_pending_identities` and `approve_external_identity` server functions (admin-gated,
+  CSRF-protected, audited) complete the OIDC admin-approve provisioning workflow (FR-013).
 - `app/src/server/content_write.rs` holds mutating `#[server]` functions (auth+CSRF+authz enforced,
-  audited, fail-closed auth with TODO for Phase 5 session wiring).
+  audited, fail-closed auth).
 - `app/src/server/extended_auth_queries.rs` holds shared SQL functions for OIDC external identities,
   WebAuthn passkeys, and scoped API tokens (ssr-only, parameterized SQL, HMAC-SHA256 token hashing).
 - `app/src/server/extended_auth.rs` holds `#[server]` functions for extended auth (OIDC begin, passkey

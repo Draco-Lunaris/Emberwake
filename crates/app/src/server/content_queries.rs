@@ -16,6 +16,39 @@ fn parse_uuid(s: &str) -> Uuid {
     Uuid::from_str(s).unwrap_or_default()
 }
 
+/// Read persisted dashboard section settings. Falls back to defaults when unset.
+/// Static SQL per branch satisfies sqlx 0.9 SqlSafeStr.
+async fn read_dashboard_settings(pool: &SqlitePool) -> DashboardSettings {
+    async fn get_setting(pool: &SqlitePool, key: &str) -> Option<String> {
+        let row: Option<(String,)> = sqlx::query_as("SELECT value FROM setting WHERE key = ?")
+            .bind(key)
+            .fetch_optional(pool)
+            .await
+            .ok()?;
+        row.map(|(v,)| v)
+    }
+    let svc_en = get_setting(pool, "dashboard.services.enabled").await;
+    let svc_cols = get_setting(pool, "dashboard.services.columns").await;
+    let app_en = get_setting(pool, "dashboard.applications.enabled").await;
+    let app_cols = get_setting(pool, "dashboard.applications.columns").await;
+    let bm_en = get_setting(pool, "dashboard.bookmarks.enabled").await;
+    let bm_cols = get_setting(pool, "dashboard.bookmarks.columns").await;
+    DashboardSettings {
+        services_enabled: svc_en.as_deref().map_or(true, |v| v == "true" || v == "1"),
+        services_columns: svc_cols
+            .as_deref()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(4),
+        applications_enabled: app_en.as_deref().map_or(true, |v| v == "true" || v == "1"),
+        applications_columns: app_cols
+            .as_deref()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(4),
+        bookmarks_enabled: bm_en.as_deref().map_or(true, |v| v == "true" || v == "1"),
+        bookmarks_columns: bm_cols.as_deref().and_then(|v| v.parse().ok()).unwrap_or(3),
+    }
+}
+
 pub(crate) fn row_to_service(row: &sqlx::sqlite::SqliteRow) -> Service {
     Service {
         id: parse_uuid(row.get("id")),
@@ -196,11 +229,51 @@ pub async fn list_dashboard_query(
 
     let applications: Vec<Application> = application_rows.iter().map(row_to_application).collect();
 
+    let settings = read_dashboard_settings(pool).await;
+
+    // Uncategorized bookmarks (NULL category_id) — render under a synthetic
+    // 'Uncategorized' group so they remain visible per FR-021 / BV-003.
+    let uncategorized_rows = match filter {
+        VisibilityFilter::PublicOnly => sqlx::query(
+            "SELECT id, category_id, name, url, icon, order_index, visibility, \
+             created_at, updated_at FROM bookmark \
+             WHERE category_id IS NULL AND visibility = 'public' ORDER BY order_index",
+        ),
+        VisibilityFilter::All => sqlx::query(
+            "SELECT id, category_id, name, url, icon, order_index, visibility, \
+             created_at, updated_at FROM bookmark \
+             WHERE category_id IS NULL AND visibility IN ('public', 'private') ORDER BY order_index",
+        ),
+        VisibilityFilter::AllIncludingRestricted => sqlx::query(
+            "SELECT id, category_id, name, url, icon, order_index, visibility, \
+             created_at, updated_at FROM bookmark \
+             WHERE category_id IS NULL ORDER BY order_index",
+        ),
+    }
+    .fetch_all(pool)
+    .await?;
+
+    if !uncategorized_rows.is_empty() {
+        let bookmarks: Vec<Bookmark> = uncategorized_rows.iter().map(row_to_bookmark).collect();
+        pinned_categories.push(CategoryWithBookmarks {
+            category: Category {
+                id: Uuid::nil(),
+                name: "Uncategorized".to_string(),
+                icon: None,
+                order_index: i64::MAX,
+                visibility: crate::domain::Visibility::Public,
+                created_at: String::new(),
+                updated_at: String::new(),
+            },
+            bookmarks,
+        });
+    }
+
     Ok(DashboardView {
         pinned_services,
         pinned_categories,
         applications,
-        settings: DashboardSettings::default(),
+        settings,
     })
 }
 

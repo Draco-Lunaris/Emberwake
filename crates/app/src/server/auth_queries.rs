@@ -590,7 +590,16 @@ pub async fn get_user_by_id(
 // --- CSRF validation ---
 
 pub fn validate_csrf(provided: &str, expected: &str) -> Result<(), AppError> {
-    if provided.is_empty() || provided != expected {
+    use subtle::ConstantTimeEq;
+    if provided.is_empty() || expected.is_empty() {
+        return Err(AppError::Forbidden);
+    }
+    let p = provided.as_bytes();
+    let e = expected.as_bytes();
+    // Lengths must match (constant-time eq short-circuits on length mismatch,
+    // which leaks length but not content — acceptable for random tokens of
+    // known fixed length).
+    if p.len() != e.len() || !bool::from(p.ct_eq(e)) {
         return Err(AppError::Forbidden);
     }
     Ok(())

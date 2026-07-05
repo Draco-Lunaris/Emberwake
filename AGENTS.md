@@ -94,3 +94,10 @@ When the user requests a durable behavior change, record it here or in the relev
 - `benches/seed_benchmark.sh` — benchmark script for SSR/CRUD/RSS/bundle measurement
 - `build-multiarch.sh` — multi-arch build script (amd64+arm64 → GHCR)
 - `e2e/` — E2E test suite (fantoccini, standalone crate outside workspace)
+
+## Phase 13 Status (Three-Section Dashboard Redesign)
+
+T085–T092 complete (Application entity, per-section settings, three-section component,
+editor, CSS, category-required validation). T093 (browser verification BV-001..BV-015)
+remains pending — requires a running server + browser. See `SPEC_STATE.md` for the
+per-task status.

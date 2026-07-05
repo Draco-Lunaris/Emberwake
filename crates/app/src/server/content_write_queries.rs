@@ -285,17 +285,36 @@ pub async fn delete_service_query(pool: &SqlitePool, id: Uuid) -> Result<(), App
 
 pub async fn reorder_services_query(
     pool: &SqlitePool,
-    _category: Option<Uuid>,
+    category: Option<Uuid>,
     order: Vec<Uuid>,
 ) -> Result<(), AppError> {
     let now = now_rfc3339();
+    let cat_filter = category.map(|u| u.to_string());
     for (idx, id) in order.iter().enumerate() {
-        sqlx::query("UPDATE service SET order_index = ?, updated_at = ? WHERE id = ?")
+        let res = match &cat_filter {
+            Some(c) => sqlx::query(
+                "UPDATE service SET order_index = ?, updated_at = ? WHERE id = ? AND category_id = ?",
+            )
             .bind(idx as i64)
             .bind(&now)
             .bind(id.to_string())
-            .execute(pool)
-            .await?;
+            .bind(c),
+            None => sqlx::query(
+                "UPDATE service SET order_index = ?, updated_at = ? WHERE id = ? AND category_id IS NULL",
+            )
+            .bind(idx as i64)
+            .bind(&now)
+            .bind(id.to_string()),
+        }
+        .execute(pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            tracing::warn!(
+                "reorder_services: id {} not in category {:?}",
+                id,
+                cat_filter
+            );
+        }
     }
     Ok(())
 }
@@ -359,7 +378,7 @@ pub async fn create_application_query(
     .bind(&input.url)
     .bind(&input.icon)
     .bind(&input.description)
-    .bind(1i64)
+    .bind(input.is_pinned as i64)
     .bind(order_index)
     .bind(input.visibility.to_string())
     .bind(&now)
@@ -460,17 +479,36 @@ pub async fn delete_application_query(pool: &SqlitePool, id: Uuid) -> Result<(),
 
 pub async fn reorder_applications_query(
     pool: &SqlitePool,
-    _category: Option<Uuid>,
+    category: Option<Uuid>,
     order: Vec<Uuid>,
 ) -> Result<(), AppError> {
     let now = now_rfc3339();
+    let cat_filter = category.map(|u| u.to_string());
     for (idx, id) in order.iter().enumerate() {
-        sqlx::query("UPDATE application SET order_index = ?, updated_at = ? WHERE id = ?")
+        let res = match &cat_filter {
+            Some(c) => sqlx::query(
+                "UPDATE application SET order_index = ?, updated_at = ? WHERE id = ? AND category_id = ?",
+            )
             .bind(idx as i64)
             .bind(&now)
             .bind(id.to_string())
-            .execute(pool)
-            .await?;
+            .bind(c),
+            None => sqlx::query(
+                "UPDATE application SET order_index = ?, updated_at = ? WHERE id = ? AND category_id IS NULL",
+            )
+            .bind(idx as i64)
+            .bind(&now)
+            .bind(id.to_string()),
+        }
+        .execute(pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            tracing::warn!(
+                "reorder_applications: id {} not in category {:?}",
+                id,
+                cat_filter
+            );
+        }
     }
     Ok(())
 }
@@ -625,17 +663,24 @@ pub async fn delete_bookmark_query(pool: &SqlitePool, id: Uuid) -> Result<(), Ap
 
 pub async fn reorder_bookmarks_query(
     pool: &SqlitePool,
-    _category: Uuid,
+    category: Uuid,
     order: Vec<Uuid>,
 ) -> Result<(), AppError> {
     let now = now_rfc3339();
+    let cat = category.to_string();
     for (idx, id) in order.iter().enumerate() {
-        sqlx::query("UPDATE bookmark SET order_index = ?, updated_at = ? WHERE id = ?")
-            .bind(idx as i64)
-            .bind(&now)
-            .bind(id.to_string())
-            .execute(pool)
-            .await?;
+        let res = sqlx::query(
+            "UPDATE bookmark SET order_index = ?, updated_at = ? WHERE id = ? AND category_id = ?",
+        )
+        .bind(idx as i64)
+        .bind(&now)
+        .bind(id.to_string())
+        .bind(&cat)
+        .execute(pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            tracing::warn!("reorder_bookmarks: id {} not in category {}", id, cat);
+        }
     }
     Ok(())
 }
