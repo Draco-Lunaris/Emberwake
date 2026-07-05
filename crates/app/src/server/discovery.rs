@@ -31,50 +31,74 @@ impl DiscoveryCache {
         }
     }
 
-    /// Get all discovered Docker services (clone).
+    /// Get all discovered Docker services (clone). Returns empty on lock poison.
     pub fn get_docker(&self) -> Vec<DiscoveredService> {
-        self.docker.read().unwrap().clone()
+        self.docker.read().map_or_else(
+            |_| {
+                tracing::warn!("discovery docker lock poisoned — returning empty");
+                Vec::new()
+            },
+            |guard| guard.clone(),
+        )
     }
 
-    /// Get all discovered K8s services (clone).
+    /// Get all discovered K8s services (clone). Returns empty on lock poison.
     pub fn get_k8s(&self) -> Vec<DiscoveredService> {
-        self.k8s.read().unwrap().clone()
+        self.k8s.read().map_or_else(
+            |_| {
+                tracing::warn!("discovery k8s lock poisoned — returning empty");
+                Vec::new()
+            },
+            |guard| guard.clone(),
+        )
     }
 
-    /// Replace all Docker discovered services.
+    /// Replace all Docker discovered services. Logs and skips on lock poison.
     pub fn set_docker(&self, services: Vec<DiscoveredService>) {
-        *self.docker.write().unwrap() = services;
+        match self.docker.write() {
+            Ok(mut g) => *g = services,
+            Err(e) => tracing::warn!("discovery docker lock poisoned — set skipped: {e}"),
+        }
     }
 
-    /// Replace all K8s discovered services.
+    /// Replace all K8s discovered services. Logs and skips on lock poison.
     pub fn set_k8s(&self, services: Vec<DiscoveredService>) {
-        *self.k8s.write().unwrap() = services;
+        match self.k8s.write() {
+            Ok(mut g) => *g = services,
+            Err(e) => tracing::warn!("discovery k8s lock poisoned — set skipped: {e}"),
+        }
     }
 
-    /// Add a single Docker discovered service.
+    /// Add a single Docker discovered service. Logs and skips on lock poison.
     pub fn add_docker(&self, service: DiscoveredService) {
-        self.docker.write().unwrap().push(service);
+        match self.docker.write() {
+            Ok(mut g) => g.push(service),
+            Err(e) => tracing::warn!("discovery docker lock poisoned — add skipped: {e}"),
+        }
     }
 
-    /// Add a single K8s discovered service.
+    /// Add a single K8s discovered service. Logs and skips on lock poison.
     pub fn add_k8s(&self, service: DiscoveredService) {
-        self.k8s.write().unwrap().push(service);
+        match self.k8s.write() {
+            Ok(mut g) => g.push(service),
+            Err(e) => tracing::warn!("discovery k8s lock poisoned — add skipped: {e}"),
+        }
     }
 
-    /// Remove Docker discovered services by source_id.
+    /// Remove Docker discovered services by source_id. Logs and skips on lock poison.
     pub fn remove_docker(&self, source_id: &str) {
-        self.docker
-            .write()
-            .unwrap()
-            .retain(|s| s.source_id != source_id);
+        match self.docker.write() {
+            Ok(mut g) => g.retain(|s| s.source_id != source_id),
+            Err(e) => tracing::warn!("discovery docker lock poisoned — remove skipped: {e}"),
+        }
     }
 
-    /// Remove K8s discovered services by source_id.
+    /// Remove K8s discovered services by source_id. Logs and skips on lock poison.
     pub fn remove_k8s(&self, source_id: &str) {
-        self.k8s
-            .write()
-            .unwrap()
-            .retain(|s| s.source_id != source_id);
+        match self.k8s.write() {
+            Ok(mut g) => g.retain(|s| s.source_id != source_id),
+            Err(e) => tracing::warn!("discovery k8s lock poisoned — remove skipped: {e}"),
+        }
     }
 }
 
