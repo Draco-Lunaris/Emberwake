@@ -520,12 +520,12 @@ pub async fn update_bookmark(
         if let Some(ref url) = patch.url {
             crate::server::content_write_queries::validate_url(url)?;
         }
-        if let Some(cat) = patch.category_id {
-            if cat == Uuid::nil() {
-                return Err(ServerFnError::from(AppError::Validation(
-                    "category_id is required".into(),
-                )));
-            }
+        if let Some(cat) = patch.category_id
+            && cat == Uuid::nil()
+        {
+            return Err(ServerFnError::from(AppError::Validation(
+                "category_id is required".into(),
+            )));
         }
         let bm =
             crate::server::content_write_queries::update_bookmark_query(&pool, id, patch).await?;
@@ -645,7 +645,7 @@ pub async fn upload_icon(file: Vec<u8>) -> Result<IconRef, ServerFnError<AppErro
         let icon_id = Uuid::now_v7();
         let icons_dir = leptos_axum::extract::<Extension<IconsDir>>()
             .await
-            .map(|d| d.0)
+            .map(|d| d.0.0)
             .unwrap_or_else(|_| "data/icons".to_string());
 
         let icon_path = format!("{icons_dir}/{icon_id}.{ext}");
