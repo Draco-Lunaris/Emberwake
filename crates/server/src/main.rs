@@ -65,6 +65,16 @@ async fn main() {
     let sse_hub = sse::SseHub::new(256);
     let discovery_cache = app::server::discovery::DiscoveryCache::new();
 
+    // Icons directory: derived from db_path parent (e.g. data/emberwake.db → data/icons).
+    let icons_dir = std::path::Path::new(&config.db_path)
+        .parent()
+        .map(|p| p.join("icons"))
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "data/icons".to_string());
+    if let Err(e) = std::fs::create_dir_all(&icons_dir) {
+        tracing::warn!("Failed to create icons dir {icons_dir}: {e}");
+    }
+
     let site_root = std::env::var("LEPTOS_SITE_ROOT").unwrap_or_else(|_| "target/site".to_string());
     let options = LeptosOptions::builder()
         .output_name("emberwake")
@@ -107,13 +117,20 @@ async fn main() {
         discovery_cache.clone(),
     );
 
-    let rp_id = format!(
-        "localhost:{}",
-        config.bind_addr.split(':').nth(1).unwrap_or("5005")
-    );
+    let rp_id = config.webauthn.rp_id.clone().unwrap_or_else(|| {
+        format!(
+            "localhost:{}",
+            config.bind_addr.split(':').nth(1).unwrap_or("5005")
+        )
+    });
+    let rp_origin = config
+        .webauthn
+        .rp_origin
+        .clone()
+        .unwrap_or_else(|| format!("http://{}", rp_id));
     let webauthn_rp = app::server::extended_auth::WebAuthnRpInfo {
-        rp_id: rp_id.clone(),
-        rp_origin: format!("http://{}", rp_id),
+        rp_id,
+        rp_origin,
     };
     let challenge_store = app::server::extended_auth::ChallengeStore::new();
 
@@ -154,6 +171,7 @@ async fn main() {
         .layer(axum::Extension(webauthn_rp))
         .layer(axum::Extension(challenge_store))
         .layer(axum::Extension(discovery_cache))
+        .layer(axum::Extension(app::server::content_write::IconsDir(icons_dir)))
         .layer(axum::Extension(app::server::auth::Argon2Params {
             m_cost: config.argon2.m_cost,
             t_cost: config.argon2.t_cost,

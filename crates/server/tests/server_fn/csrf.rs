@@ -173,3 +173,32 @@ fn origin_validation_origin_takes_precedence_over_referer() {
         "correct Origin should take precedence over wrong Referer"
     );
 }
+
+#[test]
+fn origin_validation_substring_attack_rejected() {
+    // Regression: `origin.contains(host)` accepted `evil-localhost:5005.evil.com`.
+    // Strict host:port equality must reject it.
+    let mut headers = HeaderMap::new();
+    headers.insert("host", "localhost:5005".parse().unwrap());
+    headers.insert(
+        "origin",
+        "http://evil-localhost:5005.evil.com".parse().unwrap(),
+    );
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(
+        matches!(result, Err(app::error::AppError::Forbidden)),
+        "substring-matching origin must be rejected"
+    );
+}
+
+#[test]
+fn origin_validation_empty_host_rejected() {
+    // Regression: empty Host header used to bypass the origin check.
+    let mut headers = HeaderMap::new();
+    headers.insert("origin", "http://evil.example.com".parse().unwrap());
+    let result = app::server::auth_helper::validate_origin(&headers);
+    assert!(
+        matches!(result, Err(app::error::AppError::Forbidden)),
+        "empty Host header must be rejected (fail-closed)"
+    );
+}
