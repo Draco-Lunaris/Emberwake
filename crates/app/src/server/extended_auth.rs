@@ -1,6 +1,7 @@
 //! Extended auth server functions: OIDC, WebAuthn passkeys, scoped API tokens.
 //! These are #[leptos::server] functions that call into extended_auth_queries.
 
+#[cfg(feature = "ssr")]
 use std::str::FromStr;
 
 use leptos::server_fn::ServerFnError;
