@@ -1,10 +1,11 @@
 # Release — builds the multi-arch image, generates an SBOM, pushes to GHCR, and signs the
-# image with cosign (keyless / OIDC). Triggered by a v* tag. (Constitution Principle V.)
+# image with cosign (keyless / OIDC). Triggered by a v* tag or manual dispatch. (Constitution Principle V.)
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
