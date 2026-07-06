@@ -8,6 +8,14 @@ use std::sync::{Arc, RwLock};
 
 use crate::domain::DiscoveredService;
 
+#[cfg(feature = "ssr")]
+fn warn_log(msg: &str) {
+    tracing::warn!("{msg}");
+}
+
+#[cfg(not(feature = "ssr"))]
+fn warn_log(_msg: &str) {}
+
 /// Thread-safe cache for discovered services from Docker and K8s.
 /// Cloneable (inner is Arc) — shared between background tasks and server functions.
 #[derive(Clone)]
@@ -35,7 +43,7 @@ impl DiscoveryCache {
     pub fn get_docker(&self) -> Vec<DiscoveredService> {
         self.docker.read().map_or_else(
             |_| {
-                tracing::warn!("discovery docker lock poisoned — returning empty");
+                warn_log("discovery docker lock poisoned — returning empty");
                 Vec::new()
             },
             |guard| guard.clone(),
@@ -46,7 +54,7 @@ impl DiscoveryCache {
     pub fn get_k8s(&self) -> Vec<DiscoveredService> {
         self.k8s.read().map_or_else(
             |_| {
-                tracing::warn!("discovery k8s lock poisoned — returning empty");
+                warn_log("discovery k8s lock poisoned — returning empty");
                 Vec::new()
             },
             |guard| guard.clone(),
@@ -57,7 +65,9 @@ impl DiscoveryCache {
     pub fn set_docker(&self, services: Vec<DiscoveredService>) {
         match self.docker.write() {
             Ok(mut g) => *g = services,
-            Err(e) => tracing::warn!("discovery docker lock poisoned — set skipped: {e}"),
+            Err(e) => warn_log(&format!(
+                "discovery docker lock poisoned — set skipped: {e}"
+            )),
         }
     }
 
@@ -65,7 +75,7 @@ impl DiscoveryCache {
     pub fn set_k8s(&self, services: Vec<DiscoveredService>) {
         match self.k8s.write() {
             Ok(mut g) => *g = services,
-            Err(e) => tracing::warn!("discovery k8s lock poisoned — set skipped: {e}"),
+            Err(e) => warn_log(&format!("discovery k8s lock poisoned — set skipped: {e}")),
         }
     }
 
@@ -73,7 +83,9 @@ impl DiscoveryCache {
     pub fn add_docker(&self, service: DiscoveredService) {
         match self.docker.write() {
             Ok(mut g) => g.push(service),
-            Err(e) => tracing::warn!("discovery docker lock poisoned — add skipped: {e}"),
+            Err(e) => warn_log(&format!(
+                "discovery docker lock poisoned — add skipped: {e}"
+            )),
         }
     }
 
@@ -81,7 +93,7 @@ impl DiscoveryCache {
     pub fn add_k8s(&self, service: DiscoveredService) {
         match self.k8s.write() {
             Ok(mut g) => g.push(service),
-            Err(e) => tracing::warn!("discovery k8s lock poisoned — add skipped: {e}"),
+            Err(e) => warn_log(&format!("discovery k8s lock poisoned — add skipped: {e}")),
         }
     }
 
@@ -89,7 +101,9 @@ impl DiscoveryCache {
     pub fn remove_docker(&self, source_id: &str) {
         match self.docker.write() {
             Ok(mut g) => g.retain(|s| s.source_id != source_id),
-            Err(e) => tracing::warn!("discovery docker lock poisoned — remove skipped: {e}"),
+            Err(e) => warn_log(&format!(
+                "discovery docker lock poisoned — remove skipped: {e}"
+            )),
         }
     }
 
@@ -97,7 +111,9 @@ impl DiscoveryCache {
     pub fn remove_k8s(&self, source_id: &str) {
         match self.k8s.write() {
             Ok(mut g) => g.retain(|s| s.source_id != source_id),
-            Err(e) => tracing::warn!("discovery k8s lock poisoned — remove skipped: {e}"),
+            Err(e) => warn_log(&format!(
+                "discovery k8s lock poisoned — remove skipped: {e}"
+            )),
         }
     }
 }
