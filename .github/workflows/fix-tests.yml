@@ -1,0 +1,80 @@
+name: Fix tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: clippy, rustfmt
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Fix discovery.rs - replace tracing::warn with conditional function
+        run: |
+          python3 << 'PYEOF'
+          with open('crates/app/src/server/discovery.rs') as f:
+              content = f.read()
+          
+          # Find the struct definition and replace everything before it
+          struct_start = content.index('/// Thread-safe cache')
+          header = """//! Discovery server functions and cache (US8).
+//! DiscoveryCache is shared via Axum Extension between background tasks
+//! (which populate it) and server functions (which read it).
+//! Both discover_docker and discover_kubernetes are admin-gated and
+//! return empty vec when the integration is disabled (no calls made).
+
+use std::sync::{Arc, RwLock};
+
+use crate::domain::DiscoveredService;
+
+#[cfg(feature = "ssr")]
+fn warn_log(msg: &str) {
+    tracing::warn!("{msg}");
+}
+
+#[cfg(not(feature = "ssr"))]
+fn warn_log(_msg: &str) {}
+
+"""
+          content = header + content[struct_start:]
+          
+          # Replace all tracing::warn! with warn_log()
+          content = content.replace('tracing::warn!("discovery docker lock poisoned — returning empty");', 'warn_log("discovery docker lock poisoned — returning empty");')
+          content = content.replace('tracing::warn!("discovery k8s lock poisoned — returning empty");', 'warn_log("discovery k8s lock poisoned — returning empty");')
+          content = content.replace('Err(e) => tracing::warn!("discovery docker lock poisoned — set skipped: {e}"),', 'Err(e) => warn_log(&format!("discovery docker lock poisoned — set skipped: {e}")),')
+          content = content.replace('Err(e) => tracing::warn!("discovery k8s lock poisoned — set skipped: {e}"),', 'Err(e) => warn_log(&format!("discovery k8s lock poisoned — set skipped: {e}")),')
+          content = content.replace('Err(e) => tracing::warn!("discovery docker lock poisoned — add skipped: {e}"),', 'Err(e) => warn_log(&format!("discovery docker lock poisoned — add skipped: {e}")),')
+          content = content.replace('Err(e) => tracing::warn!("discovery k8s lock poisoned — add skipped: {e}"),', 'Err(e) => warn_log(&format!("discovery k8s lock poisoned — add skipped: {e}")),')
+          content = content.replace('Err(e) => tracing::warn!("discovery docker lock poisoned — remove skipped: {e}"),', 'Err(e) => warn_log(&format!("discovery docker lock poisoned — remove skipped: {e}")),')
+          content = content.replace('Err(e) => tracing::warn!("discovery k8s lock poisoned — remove skipped: {e}"),', 'Err(e) => warn_log(&format!("discovery k8s lock poisoned — remove skipped: {e}")),')
+          
+          with open('crates/app/src/server/discovery.rs', 'w') as f:
+              f.write(content)
+          print('Fixed discovery.rs')
+          PYEOF
+      - name: Fix extended_auth.rs - gate FromStr import
+        run: |
+          sed -i 's/^use std::str::FromStr;$/#[cfg(feature = "ssr")]\nuse std::str::FromStr;/' crates/app/src/server/extended_auth.rs
+      - name: Run cargo fmt
+        run: cargo fmt --all
+      - name: Verify fmt
+        run: cargo fmt --all --check
+      - name: Run cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run cargo test
+        run: cargo test
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "No changes needed" && exit 0
+          git commit -m "fix: gate tracing behind ssr feature in discovery.rs + gate FromStr import in extended_auth.rs"
+          git push
