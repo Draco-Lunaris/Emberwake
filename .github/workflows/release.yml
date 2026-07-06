@@ -1,5 +1,7 @@
 # Release — builds the multi-arch image, generates an SBOM, pushes to GHCR, and signs the
 # image with cosign (keyless / OIDC). Triggered by a v* tag or manual dispatch. (Constitution Principle V.)
+# NOTE: ARM64 build temporarily disabled — QEMU emulation is too slow on GitHub runners.
+# Re-enable `linux/arm64` in platforms when ready for full release.
 name: Release
 
 on:
@@ -22,8 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -50,13 +50,13 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push (amd64 + arm64)
+      - name: Build and push (amd64 only — ARM64 temporarily disabled)
         id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: .docker/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
