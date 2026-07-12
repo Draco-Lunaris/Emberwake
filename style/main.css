@@ -1432,7 +1432,13 @@ hr {
     gap: calc(var(--spacing) * 0.75);
 }
 .pinned-categories .category {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 0.5);
     column-count: var(--section-columns, 3);
+    list-style: none;
+    padding: 0;
+    margin: 0;
     column-gap: calc(var(--spacing) * 1.5);
 }
 .pinned-categories .bookmarks {
@@ -1457,6 +1463,9 @@ hr {
         grid-template-columns: repeat(var(--section-columns, 4), 1fr);
     }
     .pinned-categories .category {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 0.5);
         column-count: 1;
     }
 }
