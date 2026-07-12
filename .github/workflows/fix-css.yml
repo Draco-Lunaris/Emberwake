@@ -1,0 +1,27 @@
+name: Fix CSS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix CSS
+        run: |
+          sed -i 's/\.pinned-categories \.category {/\.pinned-categories \.category {\n    display: flex;\n    flex-direction: column;\n    gap: calc(var(--spacing) * 0.5);/' style/main.css
+          sed -i 's/    column-count: var(--section-columns, 3);/    column-count: var(--section-columns, 3);\n    list-style: none;\n    padding: 0;\n    margin: 0;/' style/main.css
+          sed -i 's/\.pinned-categories \.bookmarks {/\.pinned-categories \.bookmarks {/' style/main.css
+          sed -i 's/    break-inside: avoid-column;/    break-inside: avoid-column;/' style/main.css
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "fix: bookmark layout CSS"
+          git push
