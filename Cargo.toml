@@ -51,7 +51,7 @@ scraper = { version = "0.22", default-features = false }
 quick-xml = "0.37"
 opentelemetry = "0.27"
 opentelemetry_sdk = { version = "0.27", features = ["trace", "rt-tokio"] }
-opentelemetry-otlp = { version = "0.27", default-features = false, features = ["http-proto", "reqwest-client", "trace"] }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = ["http-proto", "reqwest-client", "trace"] }
 
 [[workspace.metadata.leptos]]
 name = "emberwake"
