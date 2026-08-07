@@ -1,14 +1,12 @@
-# Continuous integration — encodes the constitution's hard gates (Principles II & IV).
-# Activates fully once the Cargo workspace lands (task T001); steps that need crates are
-# guarded so the workflow is green on the design-only repo.
-# NOTE: ARM64 matrix temporarily disabled — re-enable when ready for full release.
 name: CI
 
+# Releases-only: CI fires on version tags (+ manual dispatch).
+# Local dev/test uses `just check` on the dev box; this workflow is the
+# release-time gate. release.yml builds + publishes the Docker image on tags.
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags: ['v*.*.*']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,20 +20,37 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  has-cargo:
+  fmt:
+    name: Format
     runs-on: ubuntu-latest
-    outputs:
-      present: ${{ steps.check.outputs.present }}
     steps:
       - uses: actions/checkout@v7
-      - id: check
-        run: |
-          if [ -f Cargo.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT";
-          else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just fmt
 
-  lint-and-test:
-    needs: has-cargo
-    if: needs.has-cargo.outputs.present == 'true'
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just clippy
+
+  test:
+    name: Test (cargo leptos test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -44,54 +59,34 @@ jobs:
           components: clippy, rustfmt
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - name: Format
-        run: cargo fmt --all --check
-      - name: Clippy (-D warnings)
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
       - name: Install cargo-leptos
         run: cargo install cargo-leptos --locked
-      - name: Test (cargo leptos test)
-        run: cargo leptos test
+      - run: just test
 
-  supply-chain:
-    needs: has-cargo
-    if: needs.has-cargo.outputs.present == 'true'
+  deny:
+    name: cargo-deny
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - name: cargo-deny (advisories, licenses, bans)
-        uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: taiki-e/install-action@v2
         with:
-          command: check
+          tool: cargo-deny,just
+      - run: just deny
 
   fuzz-smoke:
-    needs: has-cargo
-    if: needs.has-cargo.outputs.present == 'true'
+    name: Fuzz smoke
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@nightly
       - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
-      - name: Fuzz import parsers (short smoke)
-        run: |
-          for t in import_html import_json import_opml; do
-            if [ -f "fuzz/fuzz_targets/${t}.rs" ]; then
-              cargo +nightly fuzz run "$t" -- -max_total_time=60 -runs=100000
-            fi
-          done
-
-  # Always-on doc/spec sanity so the design-only repo still has a green check.
-  docs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Verify spec package present
-        run: |
-          test -f .specify/memory/constitution.md
-          test -f specs/001-greenfield/spec.md
-          test -f specs/001-greenfield/plan.md
-          test -f specs/001-greenfield/tasks.md
-          echo "Spec package present."
+      - run: just fuzz-smoke
